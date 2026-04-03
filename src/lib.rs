@@ -84,7 +84,11 @@ macro_rules! montgomery_primitive_impl {
                 let t = (x / 2 + m / 2 + 1) >> <$small>::BITS - 1;
 
                 // 0 <= t < 2n if x < n r
-                if t >= self.n { t - self.n } else { t }
+                if t >= self.n {
+                    t - self.n
+                } else {
+                    t
+                }
             }
 
             /// Performs deterministic Miller-Rabin primality test.
@@ -103,13 +107,15 @@ macro_rules! montgomery_primitive_impl {
             ///     assert!(!Montgomery::primality_test(n));
             /// }
             /// // prime numbers
-            /// for n in [2, 3, 5, 7, 998_244_353, 1_000_000_007] {
+            /// for n in [2, 3, 5, 7, 10_007, 998_244_353] {
             ///     assert!(Montgomery::primality_test(n));
             /// }
             /// ```
             pub const fn primality_test(x: $small) -> bool {
-                if x & 1 == 0 || x == 1 {
+                if x & 1 == 0 {
                     return x == 2;
+                } else if x == 1 {
+                    return false;
                 }
 
                 let (s, d) = {

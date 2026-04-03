@@ -4,8 +4,10 @@
 
 This crate provides an implementation of Montgomery reduction along with additional utilities for modular arithmetic.
 
-## Install
+## Installation
 
-```sh
+Run this command:
+
+```cargo
 cargo add montgomery-uint
 ```
