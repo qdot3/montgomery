@@ -161,6 +161,8 @@ macro_rules! montgomery_primitive_impl {
         }
 
         /// Unsigned integer in Montgomery representation.
+        ///
+        #[doc = concat!("Two [", stringify!($mint), "]s with different modulus can interact but the results will be useless. Using block to drop [", stringify!($factory) ,"] is recommended")]
         #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
         pub struct $mint<'a> {
             // value < ctx.t
