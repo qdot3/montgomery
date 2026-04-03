@@ -11,5 +11,4 @@ repository = "https://github.com/qdot3/montgomery"
 keywords = ["montgomery", "modular arithmetics", "primality test"]
 categories = ["mathematics"]
 
-
 [dependencies]
