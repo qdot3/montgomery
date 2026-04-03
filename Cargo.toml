@@ -1,5 +1,6 @@
 [package]
 name = "montgomery-uint"
+authors = ["qdot3"]
 version = "0.1.0"
 rust-version = "1.79"
 edition = "2021"
