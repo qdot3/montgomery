@@ -6,8 +6,8 @@ This crate provides an implementation of Montgomery reduction along with additio
 
 ## Installation
 
-Run this command:
+Add this to your `Cargo.toml`.
 
-```cargo
-cargo add montgomery-uint
+```toml
+montgomery-uint = { git = "https://github.com/qdot3/montgomery" }
 ```
