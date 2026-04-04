@@ -5,7 +5,7 @@ macro_rules! montgomery_primitive_impl {
         #[doc = concat!("Factory to produce [", stringify!($mint), "].")]
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
         pub struct $factory {
-            // r * rr - n * nn = 1 (r = 2^32)
+            // n * nn = 1 (mod r = 2^32)
             n: $large,
             nn: $large,
             // r^2 (mod n)
@@ -32,19 +32,19 @@ macro_rules! montgomery_primitive_impl {
 
                 // doubling
                 let nn = {
-                    // n * nn = -1 (mod 4)
-                    let mut nn: $small = n.wrapping_neg() % 4;
+                    // n * nn = 1 (mod 4)
+                    let mut nn: $small = n % 4;
                     // n * nn + 1 = 0 (mod 2^k)
                     // => (n * nn + 1)^2 = 0 (mod 2^2k)
-                    // <=> n * (n * nn^2 + 2 nn) = -1 (mod 2^2k)
+                    // <=> n * (2 nn - n * nn^2) = 1 (mod 2^2k)
                     let mut d = <$small>::BITS.ilog2() - 1;
                     while d > 0 {
                         d -= 1;
-                        nn = nn.wrapping_mul(n.wrapping_mul(nn).wrapping_add(2));
+                        nn = nn.wrapping_mul((2 as $small).wrapping_sub(n.wrapping_mul(nn)));
                     }
                     debug_assert!(
-                        n.wrapping_mul(nn).wrapping_add(1) == 0,
-                        "n * nn = -1 (mod 2^32)"
+                        n.wrapping_mul(nn) == 1,
+                        "n * nn = 1 (mod 2^32)"
                     );
 
                     nn as $large
@@ -77,14 +77,15 @@ macro_rules! montgomery_primitive_impl {
             /// If `x` < `n r`, then returned value will be less than `n`
             const fn reduce(&self, x: $large) -> $large {
                 const MASK: $large = <$small>::MAX as $large;
+                const SHIFT: u32 = <$small>::BITS;
 
-                // m = x nn n = -x (mod r), m < n r
+                // m = x nn n = x (mod r), m < n r
                 let m = ((x & MASK) * self.nn & MASK) * self.n;
-                // x + m = 0 (mod r), t = x rr (mod n)
-                let t = (x / 2 + m / 2 + 1) >> <$small>::BITS - 1;
+                // x - m = 0 (mod r), t = x rr (mod n)
+                let (t, b) = (x >> SHIFT).overflowing_sub(m >> SHIFT);
 
-                // 0 <= t < 2n if x < n r
-                if t >= self.n { t - self.n } else { t }
+                // |t| < n r
+                if b { t.wrapping_add(self.n) } else { t }
             }
 
             /// Performs deterministic Miller-Rabin primality test.
@@ -312,3 +313,5 @@ montgomery_primitive_impl!(
     u128,
     [2, 325, 9375, 28178, 450775, 9780504, 1795265022],
 );
+
+
