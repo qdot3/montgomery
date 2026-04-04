@@ -33,11 +33,11 @@ macro_rules! montgomery_primitive_impl {
                 // doubling
                 let nn = {
                     // n * nn = 1 (mod 4)
-                    let mut nn: $small = n % 4;
+                    let mut nn: $small = [1, 11, 13, 7, 9, 3, 5, 15][n as usize % 16 / 2];
                     // n * nn + 1 = 0 (mod 2^k)
                     // => (n * nn + 1)^2 = 0 (mod 2^2k)
                     // <=> n * (2 nn - n * nn^2) = 1 (mod 2^2k)
-                    let mut d = <$small>::BITS.ilog2() - 1;
+                    let mut d = <$small>::BITS.ilog2() - 2;
                     while d > 0 {
                         d -= 1;
                         nn = nn.wrapping_mul((2 as $small).wrapping_sub(n.wrapping_mul(nn)));
@@ -313,5 +313,3 @@ montgomery_primitive_impl!(
     u128,
     [2, 325, 9375, 28178, 450775, 9780504, 1795265022],
 );
-
-
