@@ -84,11 +84,7 @@ macro_rules! montgomery_primitive_impl {
                 let t = (x / 2 + m / 2 + 1) >> <$small>::BITS - 1;
 
                 // 0 <= t < 2n if x < n r
-                if t >= self.n {
-                    t - self.n
-                } else {
-                    t
-                }
+                if t >= self.n { t - self.n } else { t }
             }
 
             /// Performs deterministic Miller-Rabin primality test.
@@ -308,7 +304,7 @@ macro_rules! montgomery_primitive_impl {
         }
     };
 }
-montgomery_primitive_impl!(Montgomery32, Mint32, u32, u64, [2, 3, 61],);
+montgomery_primitive_impl!(Montgomery32, Mint32, u32, u64, [2, 7, 61],);
 montgomery_primitive_impl!(
     Montgomery64,
     Mint64,
