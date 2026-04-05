@@ -9,5 +9,5 @@ This crate provides an implementation of Montgomery reduction along with additio
 Add this to your `Cargo.toml`.
 
 ```toml
-montgomery-uint = { git = "https://github.com/qdot3/montgomery" }
+lib-modulo = { git = "https://github.com/qdot3/montgomery" }
 ```

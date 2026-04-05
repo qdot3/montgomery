@@ -1,315 +1,295 @@
 use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
-macro_rules! montgomery_primitive_impl {
-    ( $factory:tt, $mint:tt, $small:ty, $large:ty, $mr_set:expr, ) => {
-        #[doc = concat!("Factory to produce [", stringify!($mint), "].")]
-        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-        pub struct $factory {
-            // n * nn = 1 (mod r = 2^32)
-            n: $large,
-            nn: $large,
-            // r^2 (mod n)
-            r2: $large,
-        }
+pub type Context64 = Context<u64>;
+pub type Context32 = Context<u32>;
 
-        impl $factory {
-            /// # Panic
-            ///
-            /// `n` should be a odd number.
-            ///
-            /// # Example
-            ///
-            /// ```
-            #[doc = concat!("use montgomery_uint::", stringify!($factory), " as Montgomery;")]
-            ///
-            /// const FACTORY: Montgomery = Montgomery::new(101);
-            ///
-            /// let modulus = 103;
-            /// let factory = Montgomery::new(modulus);
-            /// ```
-            pub const fn new(n: $small) -> Self {
-                assert!(n & 1 == 1, "modulus should be odd number");
+pub type Modulo64<'a> = Modulo<'a, u64>;
+pub type Modulo32<'a> = Modulo<'a, u32>;
 
-                // doubling
-                let nn = {
-                    // n * nn = 1 (mod 4)
-                    let mut nn: $small = [1, 11, 13, 7, 9, 3, 5, 15][n as usize % 16 / 2];
-                    // n * nn + 1 = 0 (mod 2^k)
-                    // => (n * nn + 1)^2 = 0 (mod 2^2k)
-                    // <=> n * (2 nn - n * nn^2) = 1 (mod 2^2k)
-                    let mut d = <$small>::BITS.ilog2() - 2;
+/// Storage of parameters for Montgomery multiplication.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Context<U> {
+    n: U,
+    inv_n: U,
+    r2_mod_n: U,
+}
+
+/// Modulo with a runtime-specified odd modulus.
+///
+/// # Usage
+///
+/// ```
+/// use lib_modulo::Context64;
+///
+/// // runtime-specified *odd* modulus
+/// let modulus = 5;
+///
+/// let ctx = Context64::new(modulus); // slow
+/// let n = ctx.modulo(2) * ctx.modulo(3); // fast
+/// assert_eq!(n.get(), 1);
+/// ```
+///
+/// # Caution
+///
+/// [`Modulo`] values created from different [`Context`]s can technically interact,
+/// but the results will be meaningless.
+/// It is recommended to use a block to ensure that each [`Context`] is dropped
+/// before another one is introduced.
+#[derive(Debug, Clone, Copy, Hash)]
+pub struct Modulo<'a, U> {
+    // x r (mod n)
+    value: U,
+    ctx: &'a Context<U>,
+}
+
+macro_rules! context_impl {
+    ( $single:ty, $double:ty ) => {
+        impl Context<$single> {
+            /// Calculates some parameters for Montgomery multiplication.
+            ///
+            /// # Panics
+            ///
+            /// - modulus `n` should be an odd number.
+            pub const fn new(n: $single) -> Self {
+                assert!(n & 1 == 1, "modulus should be an odd number");
+
+                let inv_n = {
+                    // n inv_n = 1 (mod 4)
+                    let mut inv_n = n % 4;
+
+                    let mut d = const { <$single>::BITS.ilog2() - 1 };
                     while d > 0 {
+                        inv_n =
+                            inv_n.wrapping_mul((2 as $single).wrapping_sub(n.wrapping_mul(inv_n)));
                         d -= 1;
-                        nn = nn.wrapping_mul((2 as $small).wrapping_sub(n.wrapping_mul(nn)));
                     }
-                    debug_assert!(
-                        n.wrapping_mul(nn) == 1,
-                        "n * nn = 1 (mod 2^32)"
-                    );
+                    debug_assert!(n.wrapping_mul(inv_n) == 1);
 
-                    nn as $large
+                    inv_n
                 };
+                let r2_mod_n = ((n as $double).wrapping_neg() % (n as $double)) as $single;
 
-                let n = n as $large;
-                let r2 = n.wrapping_neg() % n;
-
-                Self { n, nn, r2 }
+                Self { n, inv_n, r2_mod_n }
             }
 
-            /// # Example
-            ///
-            /// ```
-            #[doc = concat!("use montgomery_uint::", stringify!($factory), " as Montgomery;")]
-            ///
-            /// let factory = Montgomery::new(99);
-            /// let mint_100 = factory.new_mint(4) * factory.new_mint(25);
-            /// assert_eq!(mint_100.get(), 1);
-            /// ```
-            pub const fn new_mint(&self, x: $large) -> $mint<'_> {
-                let x = if x >= self.n { x % self.n } else { x } * self.r2;
-                let value = self.reduce(x);
+            pub const fn modulo(&self, x: $single) -> Modulo<'_, $single> {
+                // `x r2 < n r`
+                let x = self.mul(x, self.r2_mod_n);
 
-                $mint { value, ctx: &self }
-            }
-
-            /// Performs Montgomery reduction.
-            ///
-            /// If `x` < `n r`, then returned value will be less than `n`
-            const fn reduce(&self, x: $large) -> $large {
-                const MASK: $large = <$small>::MAX as $large;
-                const SHIFT: u32 = <$small>::BITS;
-
-                // m = x nn n = x (mod r), m < n r
-                let m = ((x & MASK) * self.nn & MASK) * self.n;
-                // x - m = 0 (mod r), t = x rr (mod n)
-                let (t, b) = (x >> SHIFT).overflowing_sub(m >> SHIFT);
-
-                // |t| < n r
-                if b { t.wrapping_add(self.n) } else { t }
-            }
-
-            /// Performs deterministic Miller-Rabin primality test.
-            ///
-            /// # Time Complexity
-            ///
-            /// *O*(log *x*)
-            ///
-            /// # Example
-            ///
-            /// ```
-            #[doc = concat!("use montgomery_uint::", stringify!($factory), " as Montgomery;")]
-            ///
-            /// // composite numbers
-            /// for n in [0, 1, 4, 6, 8, 9, !0] {
-            ///     assert!(!Montgomery::primality_test(n));
-            /// }
-            /// // prime numbers
-            /// for n in [2, 3, 5, 7, 10_007, 998_244_353] {
-            ///     assert!(Montgomery::primality_test(n));
-            /// }
-            /// ```
-            pub const fn primality_test(x: $small) -> bool {
-                if x & 1 == 0 {
-                    return x == 2;
-                } else if x == 1 {
-                    return false;
+                Modulo {
+                    value: x,
+                    ctx: &self,
                 }
+            }
 
-                let (s, d) = {
-                    let x = x - 1;
-                    let s = x.trailing_zeros();
-                    (s - 1, x >> s)
+            /// Performs Montgomery multiplication.
+            ///
+            /// if `lhs rhs < n r`, then `result < n`
+            const fn mul(&self, lhs: $single, rhs: $single) -> $single {
+                // FIXME: use `a.widening_mul(b)`
+                let (x_hi, x_lo) = {
+                    let x = lhs as $double * rhs as $double;
+                    ((x >> <$single>::BITS) as $single, x as $single)
                 };
+                // FIXME: use `mul_hi()`
+                // y = x n nn = x (mod r) => yl = x_lo
+                let y_hi = ((x_lo.wrapping_mul(self.inv_n) as $double * self.n as $double)
+                    >> <$single>::BITS) as $single;
+                // x - y = 0 (mod r), x - y = x (mod n) => z = x inv_r (mod n)
+                let (z, b) = x_hi.overflowing_sub(y_hi);
 
-                let factory = <$factory>::new(x);
-                let one = factory.new_mint(1).value;
-                let neg_one = factory.new_mint(x as $large - 1).value;
-
-                let mut i = 0;
-                let a = const { $mr_set };
-                'test: while i < a.len() {
-                    let mut mint = factory.new_mint(a[i]);
-                    i += 1;
-
-                    if mint.value == 0 {
-                        continue;
-                    }
-
-                    mint = mint.pow(d);
-                    if mint.value == one || mint.value == neg_one {
-                        continue;
-                    }
-
-                    let mut s = s;
-                    while s > 0 {
-                        s -= 1;
-
-                        mint.value = mint.ctx.reduce(mint.value * mint.value);
-                        if mint.value == neg_one {
-                            continue 'test;
-                        }
-                    }
-
-                    return false;
+                // x < n r, y < n r => |z| < n
+                if b {
+                    z.wrapping_add(self.n)
+                } else {
+                    z
                 }
-
-                true
             }
         }
 
-        /// Unsigned integer in Montgomery representation.
-        ///
-        #[doc = concat!("Two [", stringify!($mint), "]s with different modulus can interact but the results will be useless. Using block to drop [", stringify!($factory) ,"] is recommended")]
-        #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-        pub struct $mint<'a> {
-            // value < ctx.t
-            value: $large,
-            ctx: &'a $factory,
-        }
-
-        impl<'a> $mint<'a> {
-            /// Returns modulus.
-            ///
-            /// # Example
-            ///
-            /// ```
-            #[doc = concat!("use montgomery_uint::", stringify!($factory), " as Montgomery;")]
-            ///
-            /// let factory = Montgomery::new(99);
-            /// for i in 0..1000 {
-            ///     assert_eq!(factory.new_mint(i).modulus(), 99);
-            /// }
-            /// ```
-            pub const fn modulus(&self) -> $small {
-                self.ctx.n as $small
-            }
-
+        impl<'a> Modulo<'a, $single> {
             /// Returns value.
-            ///
-            /// # Example
-            ///
-            /// ```
-            #[doc = concat!("use montgomery_uint::", stringify!($factory), " as Montgomery;")]
-            ///
-            /// let factory = Montgomery::new(11);
-            /// let mint = factory.new_mint(11 * 100 + 7);
-            ///
-            /// assert_eq!(mint.get(), 7);
-            /// ```
-            pub const fn get(&self) -> $small {
-                self.ctx.reduce(self.value) as $small
+            pub const fn get(&self) -> $single {
+                self.ctx.mul(self.value, 1)
             }
 
-            /// # Time Complexity
+            /// Returns modulus.
+            pub const fn modulus(&self) -> $single {
+                self.ctx.n
+            }
+
+            /// Raises self to the power of `exp`, using exponentiation by squaring.
             ///
-            /// *O*(log `exp`)
+            /// # Time complexity
             ///
-            /// # Example
-            ///
-            /// ```
-            #[doc = concat!("use montgomery_uint::", stringify!($factory), " as Montgomery;")]
-            ///
-            /// let n = 10001;
-            /// let mut pow2 = 1;
-            ///
-            /// let factory = Montgomery::new(n);
-            /// let mint = factory.new_mint(3);
-            ///
-            /// for d in 1..1000 {
-            ///     pow2 = pow2 * 3 % n;
-            ///
-            ///     assert_eq!(mint.pow(d).get(), pow2)
-            /// }
-            /// ```
-            pub const fn pow(mut self, mut exp: $small) -> Self {
-                let mut res = self.ctx.reduce(self.ctx.r2);
+            /// *O*(log *exp*)
+            pub const fn pow(mut self, mut exp: u32) -> Self {
+                // r inv_r = 1 (mod n)
+                let mut result = self.ctx.modulo(1).value;
 
                 while exp > 0 {
                     if exp & 1 == 1 {
-                        res = self.ctx.reduce(res * self.value);
+                        // n < r
+                        result = self.ctx.mul(result, self.value)
                     }
 
                     exp >>= 1;
-                    self.value = self.ctx.reduce(self.value * self.value);
+                    // n < r
+                    self.value = self.ctx.mul(self.value, self.value)
                 }
+                self.value = result;
 
-                self.value = res;
                 self
             }
         }
 
-        impl<'a> Add for $mint<'a> {
+        impl<'a> Add for Modulo<'a, $single> {
             type Output = Self;
 
-            fn add(mut self, rhs: Self) -> Self::Output {
-                self.value += rhs.value;
-                if self.value >= self.ctx.n {
-                    self.value -= self.ctx.n
-                }
+            fn add(mut self, rhs: Self) -> Self {
+                let (sum, b) = self.value.overflowing_add(rhs.value);
+                self.value = if b || sum >= self.ctx.n {
+                    sum.wrapping_sub(self.ctx.n)
+                } else {
+                    sum
+                };
 
                 self
             }
         }
 
-        impl<'a> AddAssign for $mint<'a> {
-            fn add_assign(&mut self, rhs: Self) {
-                *self = *self + rhs
-            }
-        }
-
-        impl<'a> Sub for $mint<'a> {
+        impl<'a> Sub for Modulo<'a, $single> {
             type Output = Self;
 
-            fn sub(mut self, rhs: Self) -> Self::Output {
-                self.value = self.value.wrapping_sub(rhs.value);
-                if self.value >= self.ctx.n {
-                    self.value = self.value.wrapping_add(self.ctx.n)
-                }
+            fn sub(mut self, rhs: Self) -> Self {
+                let (diff, b) = self.value.overflowing_sub(rhs.value);
+                self.value = if b {
+                    diff.wrapping_add(self.ctx.n)
+                } else {
+                    diff
+                };
 
                 self
             }
         }
 
-        impl<'a> SubAssign for $mint<'a> {
-            fn sub_assign(&mut self, rhs: Self) {
-                *self = *self - rhs
-            }
-        }
-
-        impl<'a> Mul for $mint<'a> {
+        impl<'a> Mul for Modulo<'a, $single> {
             type Output = Self;
 
-            fn mul(mut self, rhs: Self) -> Self::Output {
-                self.value = self.ctx.reduce(self.value * rhs.value);
+            fn mul(mut self, rhs: Self) -> Self {
+                // n < r
+                self.value = self.ctx.mul(self.value, rhs.value);
 
                 self
             }
         }
 
-        impl<'a> MulAssign for $mint<'a> {
-            fn mul_assign(&mut self, rhs: Self) {
-                *self = *self * rhs
-            }
-        }
-
-        impl<'a> Neg for $mint<'a> {
+        impl<'a> Neg for Modulo<'a, $single> {
             type Output = Self;
 
             fn neg(mut self) -> Self::Output {
-                if self.value > 0 {
-                    self.value = self.ctx.n - self.value
-                }
+                // (x - x) r = 0 (mod n)
+                self.value = if self.value == 0 {
+                    self.value
+                } else {
+                    self.ctx.n - self.value
+                };
 
                 self
             }
         }
     };
 }
-montgomery_primitive_impl!(Montgomery32, Mint32, u32, u64, [2, 7, 61],);
-montgomery_primitive_impl!(
-    Montgomery64,
-    Mint64,
-    u64,
-    u128,
-    [2, 325, 9375, 28178, 450775, 9780504, 1795265022],
-);
+context_impl!(u64, u128);
+context_impl!(u32, u64);
+
+impl<'a, U> AddAssign for Modulo<'a, U>
+where
+    Self: Add<Output = Self> + Copy,
+{
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs
+    }
+}
+
+impl<'a, U> SubAssign for Modulo<'a, U>
+where
+    Self: Sub<Output = Self> + Copy,
+{
+    fn sub_assign(&mut self, rhs: Self) {
+        *self = *self - rhs
+    }
+}
+
+impl<'a, U> MulAssign for Modulo<'a, U>
+where
+    Self: Mul<Output = Self> + Copy,
+{
+    fn mul_assign(&mut self, rhs: Self) {
+        *self = *self * rhs
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn primality_test_u32() {
+        for x in 0..1000_000 {
+            assert_eq!(miller_rabin(x), naive(x), "{x}")
+        }
+
+        fn naive(x: u32) -> bool {
+            x > 1 && (2..=x.isqrt()).all(|d| x % d != 0)
+        }
+
+        fn miller_rabin(x: u32) -> bool {
+            if x & 1 == 0 {
+                return x == 2;
+            } else if x == 1 {
+                return false;
+            }
+
+            let (s, d) = {
+                let x = x - 1;
+                let s = x.trailing_zeros();
+                (s - 1, x >> s)
+            };
+
+            let ctx = Context::<u32>::new(x);
+            let one = ctx.modulo(1).value;
+            let neg_one = (-ctx.modulo(1)).value;
+
+            let mut i = 0;
+            let a = [2, 7, 61];
+            'test: while i < a.len() {
+                let mut mint = ctx.modulo(a[i]);
+                i += 1;
+
+                if mint.value == 0 {
+                    continue;
+                }
+
+                mint = mint.pow(d);
+                if mint.value == one || mint.value == neg_one {
+                    continue;
+                }
+
+                let mut s = s;
+                while s > 0 {
+                    s -= 1;
+
+                    mint.value = mint.ctx.mul(mint.value, mint.value);
+                    if mint.value == neg_one {
+                        continue 'test;
+                    }
+                }
+
+                return false;
+            }
+
+            true
+        }
+    }
+}

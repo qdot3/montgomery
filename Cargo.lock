@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "montgomery-uint"
+name = "lib-modulo"
 version = "0.1.0"
