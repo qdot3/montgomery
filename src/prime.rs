@@ -38,7 +38,7 @@ pub const fn primality_test(x: u64) -> bool {
                 0 // composite
             } else {
                 1 // may be prime
-            } << (n % 32);
+            } << n;
             n += 1;
         }
 

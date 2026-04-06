@@ -1,5 +1,6 @@
 use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
+pub mod factorize;
 pub mod prime;
 
 pub type Context64 = Context<u64>;
@@ -89,6 +90,7 @@ macro_rules! montgomery_impl {
                 Self { n, inv_n, r2_mod_n }
             }
 
+            #[inline(always)]
             pub const fn modulo(&self, x: $single) -> Modulo<'_, $single> {
                 // `x r2 < r n`
                 let x = self.mul(x, self.r2_mod_n);
@@ -102,6 +104,7 @@ macro_rules! montgomery_impl {
             /// Performs Montgomery multiplication.
             ///
             /// if `lhs rhs < n r`, then `result < n`
+            #[inline(always)]
             const fn mul(&self, lhs: $single, rhs: $single) -> $single {
                 // FIXME: use `a.widening_mul(b)`
                 let (x_hi, x_lo) = {
@@ -126,11 +129,13 @@ macro_rules! montgomery_impl {
 
         impl<'a> Modulo<'a, $single> {
             /// Returns value.
+            #[inline(always)]
             pub const fn get(&self) -> $single {
                 self.ctx.mul(self.value, 1)
             }
 
             /// Returns modulus.
+            #[inline(always)]
             pub const fn modulus(&self) -> $single {
                 self.ctx.n
             }
@@ -140,6 +145,7 @@ macro_rules! montgomery_impl {
             /// # Time complexity
             ///
             /// *O*(log *exp*)
+            #[inline(always)]
             pub const fn pow(mut self, mut exp: $single) -> Self {
                 // r inv_r = 1 (mod n)
                 let mut result = self.ctx.modulo(1).value;
@@ -163,6 +169,7 @@ macro_rules! montgomery_impl {
         impl<'a> Add for Modulo<'a, $single> {
             type Output = Self;
 
+            #[inline(always)]
             fn add(mut self, rhs: Self) -> Self {
                 let (sum, b) = self.value.overflowing_add(rhs.value);
                 self.value = if b || sum >= self.ctx.n {
@@ -178,6 +185,7 @@ macro_rules! montgomery_impl {
         impl<'a> Sub for Modulo<'a, $single> {
             type Output = Self;
 
+            #[inline(always)]
             fn sub(mut self, rhs: Self) -> Self {
                 let (diff, b) = self.value.overflowing_sub(rhs.value);
                 self.value = if b {
@@ -193,6 +201,7 @@ macro_rules! montgomery_impl {
         impl<'a> Mul for Modulo<'a, $single> {
             type Output = Self;
 
+            #[inline(always)]
             fn mul(mut self, rhs: Self) -> Self {
                 // n < r
                 self.value = self.ctx.mul(self.value, rhs.value);
@@ -204,6 +213,7 @@ macro_rules! montgomery_impl {
         impl<'a> Neg for Modulo<'a, $single> {
             type Output = Self;
 
+            #[inline(always)]
             fn neg(mut self) -> Self::Output {
                 // (x - x) r = 0 (mod n)
                 self.value = if self.value == 0 {
@@ -224,6 +234,7 @@ impl<'a, U> AddAssign for Modulo<'a, U>
 where
     Self: Add<Output = Self> + Copy,
 {
+    #[inline(always)]
     fn add_assign(&mut self, rhs: Self) {
         *self = *self + rhs
     }
@@ -233,6 +244,7 @@ impl<'a, U> SubAssign for Modulo<'a, U>
 where
     Self: Sub<Output = Self> + Copy,
 {
+    #[inline(always)]
     fn sub_assign(&mut self, rhs: Self) {
         *self = *self - rhs
     }
@@ -242,6 +254,7 @@ impl<'a, U> MulAssign for Modulo<'a, U>
 where
     Self: Mul<Output = Self> + Copy,
 {
+    #[inline(always)]
     fn mul_assign(&mut self, rhs: Self) {
         *self = *self * rhs
     }
