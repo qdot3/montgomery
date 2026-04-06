@@ -42,16 +42,17 @@ pub const fn primality_test(x: u64) -> bool {
 
     let ctx = Context::<u64>::new(x);
     let one = ctx.modulo(1).value;
-    debug_assert!(one != 0, "gcd(r, n) = 1, r > 1, n > 1 => r % n != 0");
+    debug_assert!(one != 0, "gcd(r, x) = 1, x > 1 => r % x != 0");
+    // (a - a) r = 0 (mod x)
     let neg_one = x - one;
 
-    let mut i = 0;
     let witness = if x < 350_269_456_337 {
         SET3.as_slice()
     } else {
         SET7.as_slice()
     };
 
+    let mut i = 0;
     'test: while i < witness.len() {
         let mut mint = ctx.modulo(witness[i]);
         i += 1;

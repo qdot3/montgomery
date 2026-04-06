@@ -57,10 +57,24 @@ macro_rules! montgomery_impl {
                 assert!(n & 1 == 1, "modulus should be an odd number");
 
                 let inv_n = {
-                    // n inv_n = 1 (mod 4)
-                    let mut inv_n = n % 4;
+                    const TABLE: u32 = {
+                        // | n     | 1 | 3  | 5  | 7 | 9 | 11 | 13 | 15 |
+                        // | inv_n | 1 | 11 | 13 | 7 | 9 | 3  | 5  | 15 | <- 4 bits * 8
+                        let inv_n = [1, 11, 13, 7, 9, 3, 5, 15];
 
-                    let mut d = const { <$single>::BITS.ilog2() - 1 };
+                        let mut table = 0;
+                        let mut i = 0;
+                        while i < 8 {
+                            table |= inv_n[i] << (i * 4);
+                            i += 1;
+                        }
+
+                        table
+                    };
+                    // n inv_n = 1 (mod 8)
+                    let mut inv_n = ((TABLE >> (n & 0b1110) * 2) & 0b1111) as $single;
+
+                    let mut d = const { <$single>::BITS.ilog2() - 2 };
                     while d > 0 {
                         inv_n =
                             inv_n.wrapping_mul((2 as $single).wrapping_sub(n.wrapping_mul(inv_n)));
