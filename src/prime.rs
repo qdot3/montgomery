@@ -1,7 +1,7 @@
 use super::Context;
 
 /// `x` is prime iff `(test >> x) & 1 == 1`
-const SMALL_TEST: u64 = {
+const SMALL_PRIME: u64 = {
     let mut test = 0;
     let mut x = 64;
     while x > 0 {
@@ -28,9 +28,26 @@ static SET7: [u64; 7] = [2, 325, 9375, 28178, 450775, 9780504, 1795265022];
 ///
 /// *O*(log *x*)
 pub const fn primality_test(x: u64) -> bool {
+    /// remove multiples of 2, 3 or 5
+    const MAY_BE_PRIME_30: u32 = {
+        let mut table = 0;
+
+        let mut n = 0;
+        while n < 30 {
+            table |= if n % 2 == 0 || n % 3 == 0 || n % 5 == 0 {
+                0 // composite
+            } else {
+                1 // may be prime
+            } << (n % 32);
+            n += 1;
+        }
+
+        table
+    };
+
     if x < 64 {
-        return (SMALL_TEST >> x) & 1 == 1;
-    } else if x % 2 == 0 || x % 3 == 0 || x % 5 == 0 || x % 7 == 0 {
+        return (SMALL_PRIME >> x) & 1 == 1;
+    } else if (MAY_BE_PRIME_30 >> x % 30) & 1 == 0 || x % 7 == 0 {
         return false;
     }
 
