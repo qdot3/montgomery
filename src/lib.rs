@@ -1,5 +1,7 @@
 use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
+pub mod prime;
+
 pub type Context64 = Context<u64>;
 pub type Context32 = Context<u32>;
 
@@ -9,6 +11,7 @@ pub type Modulo32<'a> = Modulo<'a, u32>;
 /// Storage of parameters for Montgomery multiplication.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Context<U> {
+    // n inv_n = 1 (mod r = 2^32 or 2^64)
     n: U,
     inv_n: U,
     r2_mod_n: U,
@@ -42,7 +45,7 @@ pub struct Modulo<'a, U> {
     ctx: &'a Context<U>,
 }
 
-macro_rules! context_impl {
+macro_rules! montgomery_impl {
     ( $single:ty, $double:ty ) => {
         impl Context<$single> {
             /// Calculates some parameters for Montgomery multiplication.
@@ -73,7 +76,7 @@ macro_rules! context_impl {
             }
 
             pub const fn modulo(&self, x: $single) -> Modulo<'_, $single> {
-                // `x r2 < n r`
+                // `x r2 < r n`
                 let x = self.mul(x, self.r2_mod_n);
 
                 Modulo {
@@ -123,7 +126,7 @@ macro_rules! context_impl {
             /// # Time complexity
             ///
             /// *O*(log *exp*)
-            pub const fn pow(mut self, mut exp: u32) -> Self {
+            pub const fn pow(mut self, mut exp: $single) -> Self {
                 // r inv_r = 1 (mod n)
                 let mut result = self.ctx.modulo(1).value;
 
@@ -200,8 +203,8 @@ macro_rules! context_impl {
         }
     };
 }
-context_impl!(u64, u128);
-context_impl!(u32, u64);
+montgomery_impl!(u64, u128);
+montgomery_impl!(u32, u64);
 
 impl<'a, U> AddAssign for Modulo<'a, U>
 where
