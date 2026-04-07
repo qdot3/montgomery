@@ -170,7 +170,7 @@ macro_rules! montgomery_impl {
             /// # Time Complexity
             ///
             /// *O*(log `self`)
-            pub fn inv(self) -> Option<Self> {
+            pub const fn inv(self) -> Option<Self> {
                 let mut a = self.get();
                 let Self { ctx, .. } = self;
 
@@ -196,7 +196,11 @@ macro_rules! montgomery_impl {
                 }
 
                 // b = gcd([a], [b])
-                (b == 1).then_some(Self { value: y, ctx })
+                if b == 1 {
+                    Some(Self { value: y, ctx })
+                } else {
+                    None
+                }
             }
         }
 
