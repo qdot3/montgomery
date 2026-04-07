@@ -129,12 +129,40 @@ macro_rules! montgomery_impl {
 
         impl<'a> Modulo<'a, $single> {
             /// Returns value.
+            ///
+            /// # Example
+            ///
+            /// ```
+            /// use lib_modulo::Context;
+            ///
+            /// let n = 101;
+            #[doc = concat!("let ctx = Context::<", stringify!($single), ">::new(n);")]
+            ///
+            /// let n = ctx.modulo(99);
+            ///
+            /// assert_eq!(n.get(), 99);
+            /// assert_eq!(n.modulus(), 101);
+            /// ```
             #[inline(always)]
             pub const fn get(&self) -> $single {
                 self.ctx.mul(self.value, 1)
             }
 
             /// Returns modulus.
+            ///
+            /// # Example
+            ///
+            /// ```
+            /// use lib_modulo::Context;
+            ///
+            /// let n = 101;
+            #[doc = concat!("let ctx = Context::<", stringify!($single), ">::new(n);")]
+            ///
+            /// let n = ctx.modulo(99);
+            ///
+            /// assert_eq!(n.get(), 99);
+            /// assert_eq!(n.modulus(), 101);
+            /// ```
             #[inline(always)]
             pub const fn modulus(&self) -> $single {
                 self.ctx.n
@@ -145,7 +173,22 @@ macro_rules! montgomery_impl {
             /// # Time complexity
             ///
             /// *O*(log `exp`)
-            #[inline(always)]
+            ///
+            /// # Example
+            ///
+            /// ```
+            /// use lib_modulo::Context;
+            ///
+            /// let n = 12_345;
+            #[doc = concat!("let ctx = Context::<", stringify!($single), ">::new(n);")]
+            ///
+            /// let mut pow10 = 1;
+            /// for i in 0..1_000 {
+            ///     assert_eq!(ctx.modulo(10).pow(i).get(), pow10);
+            ///     pow10 = pow10 * 10 % n;
+            /// }
+            /// ```
+            #[inline]
             pub const fn pow(mut self, mut exp: $single) -> Self {
                 // r inv_r = 1 (mod n)
                 let mut result = self.ctx.modulo(1).value;
@@ -170,6 +213,23 @@ macro_rules! montgomery_impl {
             /// # Time Complexity
             ///
             /// *O*(log `self`)
+            ///
+            /// # Example
+            ///
+            /// ```
+            /// use lib_modulo::Context;
+            ///
+            /// // 998_244_353 is a prime number, so modular inverse of n exists iff n != 0 (mod 998_244_353)
+            #[doc = concat!("let ctx = Context::<", stringify!($single), ">::new(998_244_353);")]
+            ///
+            /// for n in 1..500_000 {
+            ///     let n = ctx.modulo(n);
+            ///     assert!(n.inv().is_some_and(|i| (i * n).get() == 1));
+            /// }
+            /// // 0 n = 0 != 1 for any integer n
+            /// assert!(ctx.modulo(0).inv().is_none());
+            /// ```
+            #[inline]
             pub const fn inv(self) -> Option<Self> {
                 let mut a = self.get();
                 let Self { ctx, .. } = self;
