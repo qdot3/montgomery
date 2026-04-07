@@ -168,6 +168,23 @@ macro_rules! montgomery_impl {
                 self.ctx.n
             }
 
+            /// Returns `true` if `self` is `0`.
+            ///
+            /// # Example
+            ///
+            /// ```
+            /// use lib_modulo::Context;
+            ///
+            /// for n in (1..100_000).step_by(2) {
+            #[doc = concat!("    let ctx = Context::<", stringify!($single), ">::new(n);")]
+            ///     assert!(ctx.modulo(0).is_zero());
+            /// }
+            /// ```
+            #[inline(always)]
+            pub const fn is_zero(self) -> bool {
+                self.value == 0
+            }
+
             /// Raises self to the power of `exp`, using exponentiation by squaring.
             ///
             /// # Time complexity
