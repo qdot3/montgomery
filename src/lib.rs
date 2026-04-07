@@ -176,7 +176,7 @@ macro_rules! montgomery_impl {
 
                 // performs extended binary gcd
                 //
-                // invariants: a = [a] x,  b = [a] y (mod n) where [a] are initial values
+                // invariants: a = [a] x,  b = [a] y (mod n) where [a] is initial value
                 let mut b = ctx.n;
                 let mut x = ctx.modulo(1).value; // 1 r mod n
                 let mut y = 0; // 0 r mod n
