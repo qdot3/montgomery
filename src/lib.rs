@@ -39,7 +39,7 @@ pub struct Context<U> {
 /// but the results will be meaningless.
 /// It is recommended to use a block to ensure that each [`Context`] is dropped
 /// before another one is introduced.
-#[derive(Debug, Clone, Copy, Hash)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Modulo<'a, U> {
     // x r (mod n)
     value: U,
@@ -144,7 +144,7 @@ macro_rules! montgomery_impl {
             ///
             /// # Time complexity
             ///
-            /// *O*(log *exp*)
+            /// *O*(log `exp`)
             #[inline(always)]
             pub const fn pow(mut self, mut exp: $single) -> Self {
                 // r inv_r = 1 (mod n)
@@ -163,6 +163,40 @@ macro_rules! montgomery_impl {
                 self.value = result;
 
                 self
+            }
+
+            /// Calculates modular inverse of `self` by extended binary GCD algorithm.
+            ///
+            /// # Time Complexity
+            ///
+            /// *O*(log `self`)
+            pub fn inv(self) -> Option<Self> {
+                let mut a = self.get();
+                let Self { ctx, .. } = self;
+
+                // performs extended binary gcd
+                //
+                // invariants: a = [a] x,  b = [a] y (mod n) where [a] are initial values
+                let mut b = ctx.n;
+                let mut x = ctx.modulo(1).value; // 1 r mod n
+                let mut y = 0; // 0 r mod n
+                let frac_1_2 = ctx.modulo(ctx.n.div_ceil(2));
+
+                while a > 0 {
+                    x = ctx.mul(x, frac_1_2.pow(a.trailing_zeros() as $single).value);
+                    a >>= a.trailing_zeros();
+
+                    if a < b {
+                        (a, b) = (b, a);
+                        (x, y) = (y, x);
+                    }
+                    a -= b;
+                    let (diff, b) = x.overflowing_sub(y);
+                    x = if b { diff.wrapping_add(ctx.n) } else { diff };
+                }
+
+                // b = gcd([a], [b])
+                (b == 1).then_some(Self { value: y, ctx })
             }
         }
 
