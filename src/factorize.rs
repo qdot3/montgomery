@@ -4,7 +4,7 @@ use crate::{prime::primality_test, Context64};
 static SMALL_ODD_PRIME_CONTEXT_16: [(u16, u64, u16); 6541] =
     include!("./small_prime_context_u16_raw.rs");
 
-/// *WIP*
+/// [*WIP*] Factorize integer.
 ///
 /// # Panics
 ///
