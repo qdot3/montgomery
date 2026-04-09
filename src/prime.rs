@@ -1,4 +1,4 @@
-use super::Context;
+use crate::Context64;
 
 /// `x` is prime iff `(test >> x) & 1 == 1`
 const SMALL_PRIME: u64 = {
@@ -57,7 +57,7 @@ pub const fn primality_test(x: u64) -> bool {
         (s - 1, x >> s)
     };
 
-    let ctx = Context::<u64>::new(x);
+    let ctx = Context64::new(x);
     let one = ctx.modulo(1).value;
     debug_assert!(one != 0, "gcd(r, x) = 1, x > 1 => r % x != 0");
     // (a - a) r = 0 (mod x)
@@ -115,6 +115,23 @@ const fn primality_test_naive(x: u64) -> bool {
 
     true
 }
+
+// #[test]
+// fn f() {
+//     use std::io::Write;
+
+//     let mut f = std::fs::File::create("./src/small_prime_context_u16_raw.rs").unwrap();
+
+//     let _ = f.write(b"[\n");
+//     for n in (3..1 << 16).step_by(2) {
+//         if primality_test(n) {
+//             let ctx = Context64::new(n);
+
+//             let _ = f.write(format!("({}, {}, {}),\n", ctx.n, ctx.inv_n, ctx.r2_mod_n).as_bytes());
+//         }
+//     }
+//     let _ = f.write(b"]");
+// }
 
 #[cfg(test)]
 mod tests {
