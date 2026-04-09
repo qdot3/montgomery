@@ -4,7 +4,7 @@ use crate::{prime::primality_test, Context64};
 static SMALL_ODD_PRIME_CONTEXT_16: [(u16, u64, u16); 6541] =
     include!("./small_prime_context_u16_raw.rs");
 
-/// [*WIP*] Factorize integer.
+/// \[*WIP*\] Factorize integer.
 ///
 /// # Panics
 ///
@@ -116,7 +116,7 @@ fn pollard_rho(x: u64) -> u64 {
         }
     }
 
-    panic!("This is a big in `factorize()` function. Please report following two numbers:\ntarget: {x}\nperiod: {cnt}")
+    panic!("This is a bug in `factorize()` function. Please report following two numbers:\ntarget: {x}\nperiod: {cnt}")
 }
 
 #[inline(always)]
