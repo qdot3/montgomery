@@ -18,6 +18,12 @@ pub struct Context<U> {
     r2_mod_n: U,
 }
 
+impl<U> Context<U> {
+    pub const fn modulus(&self) -> &U {
+        &self.n
+    }
+}
+
 /// Modulo with a runtime-specified odd modulus.
 ///
 /// # Usage
@@ -183,6 +189,23 @@ macro_rules! montgomery_impl {
             #[inline(always)]
             pub const fn is_zero(self) -> bool {
                 self.value == 0
+            }
+
+            /// Returns `0`.
+            ///
+            /// # Example
+            ///
+            /// ```
+            /// use lib_modulo::{Context, Modulo};
+            ///
+            /// for n in (1..100_000).step_by(2) {
+            #[doc = concat!("    let ctx = Context::<", stringify!($single), ">::new(n);")]
+            #[doc = concat!("    assert_eq!(Modulo::<'_, ", stringify!($single), ">::zero(&ctx).get(), 0);")]
+            /// }
+            /// ```
+            #[inline(always)]
+            pub const fn zero(ctx: &'a Context<$single>) -> Self {
+                Self { value: 0, ctx }
             }
 
             /// Raises self to the power of `exp`, using exponentiation by squaring.
