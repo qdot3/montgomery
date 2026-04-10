@@ -113,9 +113,17 @@ macro_rules! montgomery_impl {
             /// if `lhs rhs < n r`, then `result < n`
             #[inline(always)]
             const fn mul(&self, lhs: $single, rhs: $single) -> $single {
+                self.mul_add(lhs, rhs, 0)
+            }
+
+            /// Performs `lhs rhs + add`.
+            ///
+            /// If `lhs rhs + add < n r`, then the result is less than `n`.
+            #[inline(always)]
+            const fn mul_add(&self, lhs: $single, rhs: $single, add: $single) -> $single {
                 // FIXME: use `a.widening_mul(b)`
                 let (x_hi, x_lo) = {
-                    let x = lhs as $double * rhs as $double;
+                    let x = lhs as $double * rhs as $double + add as $double;
                     ((x >> <$single>::BITS) as $single, x as $single)
                 };
                 // FIXME: use `mul_hi()`
@@ -148,6 +156,7 @@ macro_rules! montgomery_impl {
             /// ```
             #[inline]
             pub const fn can_divide(&self, x: $single) -> bool {
+                // x < n r
                 let x = self.mul(x, 1);
                 x == 0
             }
@@ -228,7 +237,7 @@ macro_rules! montgomery_impl {
                 Self { value: 0, ctx }
             }
 
-            /// Raises self to the power of `exp`, using exponentiation by squaring.
+            /// Raises `self` to the power of `exp`, using exponentiation by squaring.
             ///
             /// # Time complexity
             ///
