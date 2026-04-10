@@ -6,6 +6,10 @@ static SMALL_ODD_PRIME_CONTEXT_16: [(u16, u64, u16); 6541] =
 
 /// \[*WIP*\] Factorize integer.
 ///
+/// # Time complexity
+///
+/// O(`x`^(1/4)) expected
+///
 /// # Panics
 ///
 /// Panics if you are unlucky. *Do not use this function in any production code.*
@@ -65,6 +69,30 @@ pub fn factorize(mut x: u64, factor: &mut Vec<u64>) {
     }
 }
 
+fn quadratic_sieve(x: u64) -> u64 {
+    let r = x.isqrt();
+    if r * r == x {
+        // since x is composed of at moet 3 prime numbers, `r` is prime.
+        return r;
+    }
+
+    for a in r + 1..1 << 32 {
+        let mut d = a * a - x;
+        let mut ingredient = 0;
+
+        ingredient |= d.trailing_zeros() & 1;
+        d >>= d.trailing_zeros();
+
+        if d > 0 {
+            continue;
+        }
+        if ingredient == 0 {
+            todo!("d = b^2 => (a+b)(a-b) = x")
+        }
+    }
+    todo!()
+}
+
 fn pollard_rho(x: u64) -> u64 {
     // x = Π_i p_i^{k_i} => period T >= lcm {p_i - 1}_i >= max {p_i - 1}_i
     let ctx = Context64::new(x);
@@ -84,7 +112,8 @@ fn pollard_rho(x: u64) -> u64 {
         prod *= y1;
         cnt += 1;
 
-        if cnt % 512 == 0 || y1.is_zero() {
+        // 2^16 < p < 2^32 => 2^8 < sqrt(p) < 2^16
+        if cnt % 256 == 0 || y1.is_zero() {
             let g = binary_gcd(prod.get(), x);
 
             if g == 1 {
@@ -142,7 +171,7 @@ fn binary_gcd(mut a: u64, mut b: u64) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use rand::{random_iter, rng, seq::SliceRandom, Rng};
+    use rand::{random_iter, rng, Rng};
 
     use super::*;
 
@@ -221,18 +250,17 @@ mod tests {
 
     // fast since p is relatively small
     #[test]
-    fn triple() {
-        let mut p = Vec::from_iter(
+    fn cube() {
+        let p = Vec::from_iter(
             (0..1 << 21)
                 .rev()
                 .step_by(2)
                 .filter(|n| primality_test(*n))
-                .take(100),
+                .take(300),
         );
-        p.shuffle(&mut rng());
 
-        for p in p.windows(3) {
-            let n = p[0] * p[1] * p[2];
+        for p in p {
+            let n = p.pow(3);
             let mut factor = Vec::new();
 
             factorize(n, &mut factor);

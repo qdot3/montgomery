@@ -1,17 +1,5 @@
 use crate::Context64;
 
-/// `x` is prime iff `(test >> x) & 1 == 1`
-const SMALL_PRIME: u64 = {
-    let mut test = 0;
-    let mut x = 64;
-    while x > 0 {
-        x -= 1;
-
-        test = (test << 1) | if primality_test_naive(x) { 1 } else { 0 };
-    }
-    test
-};
-
 // from <https://miller-rabin.appspot.com/>
 /// x < 350_269_456_337
 static SET3: [u64; 3] = [
@@ -30,12 +18,24 @@ static SET5: [u64; 5] = [
 /// x < 2^64
 static SET7: [u64; 7] = [2, 325, 9375, 28178, 450775, 9780504, 1795265022];
 
-/// Performs Miller-Rabin primality test.
+/// Performs deterministic Miller-Rabin primality test.
 ///
 /// # Time complexity
 ///
 /// *O*(log *x*)
 pub const fn primality_test(x: u64) -> bool {
+    /// `x` is prime iff `(test >> x) & 1 == 1`
+    const SMALL_PRIME: u64 = {
+        let mut test = 0;
+        let mut x = 64;
+        while x > 0 {
+            x -= 1;
+
+            test = (test << 1) | if primality_test_naive(x) { 1 } else { 0 };
+        }
+        test
+    };
+
     /// remove multiples of 2, 3 or 5
     const MAY_BE_PRIME_30: u32 = {
         let mut table = 0;
@@ -67,8 +67,7 @@ pub const fn primality_test(x: u64) -> bool {
 
     let ctx = Context64::new(x);
     let one = ctx.modulo(1).value;
-    debug_assert!(one != 0, "gcd(r, x) = 1, x > 1 => r % x != 0");
-    // (a - a) r = 0 (mod x)
+    // (a - a) r = 0 (mod x), r % x != 0
     let neg_one = x - one;
 
     let witness = if x < 350_269_456_337 {

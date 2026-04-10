@@ -60,6 +60,7 @@ macro_rules! montgomery_impl {
             /// # Panics
             ///
             /// - modulus `n` should be an odd number.
+            #[inline]
             pub const fn new(n: $single) -> Self {
                 assert!(n & 1 == 1, "modulus should be an odd number");
 
@@ -248,9 +249,9 @@ macro_rules! montgomery_impl {
                 self
             }
 
-            /// Calculates modular inverse of `self` by extended binary GCD algorithm.
+            /// Calculates the modular inverse of `self` by extended binary GCD algorithm.
             ///
-            /// # Time Complexity
+            /// # Time complexity
             ///
             /// *O*(log `self`)
             ///
