@@ -146,6 +146,7 @@ macro_rules! montgomery_impl {
             ///     (0..1 << 10).for_each(|k| assert!(ctx.can_divide(n * k)));
             /// }
             /// ```
+            #[inline]
             pub const fn can_divide(&self, x: $single) -> bool {
                 let x = self.mul(x, 1);
                 x == 0
