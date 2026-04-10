@@ -132,6 +132,24 @@ macro_rules! montgomery_impl {
                     z
                 }
             }
+
+            /// Checks whether `x` is multiple of `self`.
+            ///
+            /// # Example
+            ///
+            /// ```
+            /// use lib_modulo::Context;
+            ///
+            /// for n in (1..1 << 10).step_by(2) {
+            #[doc = concat!("let ctx = Context::<", stringify!($single), ">::new(n);")]
+            ///
+            ///     (0..1 << 10).for_each(|k| assert!(ctx.can_divide(n * k)));
+            /// }
+            /// ```
+            pub const fn can_divide(&self, x: $single) -> bool {
+                let x = self.mul(x, 1);
+                x == 0
+            }
         }
 
         impl<'a> Modulo<'a, $single> {

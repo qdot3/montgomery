@@ -41,7 +41,7 @@ pub fn factorize(mut x: u64, factor: &mut Vec<u64>) {
             r2_mod_n: r2_mod_n as u64,
         };
 
-        while ctx.modulo(x).is_zero() {
+        while ctx.can_divide(x) {
             x /= ctx.n;
             factor.push(ctx.n);
         }
@@ -83,7 +83,7 @@ fn quadratic_sieve(x: u64) -> u64 {
         ingredient |= d.trailing_zeros() & 1;
         d >>= d.trailing_zeros();
 
-        if d > 0 {
+        if d > 1 {
             continue;
         }
         if ingredient == 0 {
