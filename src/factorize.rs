@@ -97,7 +97,7 @@ fn pollard_rho(x: u64) -> Option<NonZero<u64>> {
         let mut step = 0;
         let mut memo = [[0, 0, one.value]; 1 << 5];
 
-        'a: while !prod.is_zero() {
+        'cycle_detection: while !prod.is_zero() {
             y0.value = f(y0.value);
             y1.value = f(f(y1.value));
             prod *= y1 - y0;
@@ -106,11 +106,11 @@ fn pollard_rho(x: u64) -> Option<NonZero<u64>> {
             if step % (1 << 5) == 0 {
                 memo[(step >> 5) % (1 << 5)] = [y0.value, y1.value, prod.value];
             }
-            if step % (1 << 10) == 0 {
+            if step % (1 << 10) == 0 || prod.is_zero() {
                 let g = binary_gcd(prod.value, x);
 
                 if g == 1 {
-                    continue 'a;
+                    continue 'cycle_detection;
                 } else if primality_test(g) {
                     return NonZero::new(g);
                 }
@@ -135,7 +135,7 @@ fn pollard_rho(x: u64) -> Option<NonZero<u64>> {
                                     // FIXME: `x` is composed of at most 3 primes, so return `x/g`
                                     return pollard_rho(g);
                                 } else {
-                                    break 'a;
+                                    break 'cycle_detection;
                                 }
                             }
 
@@ -143,36 +143,6 @@ fn pollard_rho(x: u64) -> Option<NonZero<u64>> {
                             y1.value = f(f(y1.value));
                         }
                     }
-                }
-            }
-        }
-
-        'a: for i in 0..(step % (1 << 10)) >> 5 {
-            let g = binary_gcd(memo[i][2], x);
-
-            if g != 1 {
-                if primality_test(g) {
-                    return NonZero::new(g);
-                }
-
-                y0.value = memo[i][0];
-                y1.value = memo[i][1];
-                for _ in 0..1 << 5 {
-                    let g = binary_gcd((y0 - y1).value, x);
-
-                    if g != 1 {
-                        if primality_test(g) {
-                            return NonZero::new(g);
-                        } else if g != x {
-                            // FIXME: `x` is composed of at most 3 primes, so return `x/g`
-                            return pollard_rho(g);
-                        } else {
-                            break 'a;
-                        }
-                    }
-
-                    y0.value = f(y0.value);
-                    y1.value = f(f(y1.value));
                 }
             }
         }
@@ -209,20 +179,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn random_square() {
+    fn random() {
         let mut rng = rng();
-        for n in std::iter::repeat_with(|| rng.random_range(1 << 20..1 << 32)).take(5000) {
+        for n in std::iter::repeat_with(|| rng.random_range(1 << 55..=u64::MAX)).take(10_000) {
             let mut factor = Vec::new();
 
-            assert!(factorize(n * n, &mut factor).is_ok());
-            assert_eq!(n * n, factor.iter().product())
+            assert!(factorize(n, &mut factor).is_ok());
+            assert_eq!(n, factor.iter().product())
         }
     }
 
     #[test]
-    fn random_cube() {
+    fn random_square() {
         let mut rng = rng();
-        for n in std::iter::repeat_with(|| rng.random_range(1 << 16..1 << 21)).take(5000) {
+        for n in std::iter::repeat_with(|| rng.random_range(1 << 20..1 << 32)).take(5000) {
             let mut factor = Vec::new();
 
             assert!(factorize(n * n, &mut factor).is_ok());
