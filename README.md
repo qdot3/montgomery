@@ -11,3 +11,11 @@ Add this to your `Cargo.toml`.
 ```toml
 lib-modulo = { git = "https://github.com/qdot3/montgomery" }
 ```
+
+## Future Plan
+
+These functions will be added:
+
+- `sqrt()`
+- `nth_root()`
+- `log()`
