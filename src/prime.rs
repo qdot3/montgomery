@@ -83,7 +83,7 @@ pub const fn primality_test(x: u64) -> bool {
         let mut mint = ctx.modulo(witness[i]);
         i += 1;
 
-        if mint.value == 0 {
+        if mint.is_zero() {
             continue;
         }
 
