@@ -1,18 +1,18 @@
+use std::num::NonZero;
+
 use crate::{prime::primality_test, Context64};
 
 // 12 bytes * 6541 ~ 75 KiB
 static SMALL_ODD_PRIME_CONTEXT_16: [(u16, u64, u16); 6541] =
     include!("./small_prime_context_u16_raw.rs");
 
-/// \[*WIP*\] Factorize integer.
+/// Factorize integer and write prime factors in `factor` in any order.
+///
+/// This function may fail.
 ///
 /// # Time complexity
 ///
 /// O(`x`^(1/4)) expected
-///
-/// # Panics
-///
-/// Panics if you are unlucky. *Do not use this function in any production code.*
 ///
 /// # Example
 ///
@@ -24,10 +24,11 @@ static SMALL_ODD_PRIME_CONTEXT_16: [(u16, u64, u16); 6541] =
 ///
 /// println!("{:?}", factor)
 /// ```
-pub fn factorize(mut x: u64, factor: &mut Vec<u64>) {
+pub fn factorize(mut x: u64, factor: &mut Vec<u64>) -> Result<(), ()> {
     if x < 2 {
-        return;
+        return Ok(());
     }
+    factor.reserve(64);
 
     // trial division by small primes less than 2^16
     {
@@ -47,7 +48,7 @@ pub fn factorize(mut x: u64, factor: &mut Vec<u64>) {
         }
 
         if x == 1 {
-            return;
+            return Ok(());
         }
     }
 
@@ -55,25 +56,29 @@ pub fn factorize(mut x: u64, factor: &mut Vec<u64>) {
     while x > 1 {
         if primality_test(x) {
             factor.push(x);
-            return;
+            return Ok(());
         }
 
-        // x is a composite number
-        let d = pollard_rho(x);
-        if primality_test(d) {
+        if let Some(d) = pollard_rho(x) {
+            let d = d.get();
             while x % d == 0 {
                 x /= d;
                 factor.push(d);
             }
+        } else {
+            return Err(());
         }
     }
+
+    Ok(())
 }
 
-fn pollard_rho(x: u64) -> u64 {
+fn pollard_rho(x: u64) -> Option<NonZero<u64>> {
     let ctx = Context64::new(x);
     let one = ctx.modulo(1);
 
-    for c in 1..10 {
+    for c in 1..100 {
+        // a = b (mod x) => f(a) = f(b) (mod x)
         let f = |x: u64| ctx.mul_add(x, x, c);
 
         let mut y0 = ctx.modulo(1);
@@ -98,7 +103,7 @@ fn pollard_rho(x: u64) -> u64 {
                 if g == 1 {
                     continue 'a;
                 } else if primality_test(g) {
-                    return g;
+                    return NonZero::new(g);
                 }
 
                 for i in 0..memo.len() {
@@ -106,7 +111,7 @@ fn pollard_rho(x: u64) -> u64 {
 
                     if g != 1 {
                         if primality_test(g) {
-                            return g;
+                            return NonZero::new(g);
                         }
 
                         y0.value = memo[i][0];
@@ -116,7 +121,7 @@ fn pollard_rho(x: u64) -> u64 {
 
                             if g != 1 {
                                 if primality_test(g) {
-                                    return g;
+                                    return NonZero::new(g);
                                 } else {
                                     return pollard_rho(g);
                                 }
@@ -131,7 +136,7 @@ fn pollard_rho(x: u64) -> u64 {
         }
     }
 
-    panic!("This is a bug in `factorize()` function. Please report the following::\ntarget: {x}")
+    None
 }
 
 #[inline(always)]
@@ -168,12 +173,13 @@ mod tests {
         );
 
         let mut factor = Vec::new();
-        factorize(
+        assert!(factorize(
             primes
                 .iter()
                 .fold(1, |prod, p| prod.checked_mul(*p).unwrap()),
             &mut factor,
-        );
+        )
+        .is_ok());
 
         factor.sort_unstable();
         primes.sort_unstable();
@@ -202,7 +208,7 @@ mod tests {
         for n in random_iter::<u32>().take(10_000) {
             let mut factor = Vec::new();
 
-            factorize(n as u64, &mut factor);
+            assert!(factorize(n as u64, &mut factor).is_ok());
             assert_eq!(n as u64, factor.iter().product())
         }
     }
@@ -213,7 +219,7 @@ mod tests {
         for n in std::iter::repeat_with(|| rng.random_range(1 << 20..1 << 30)).take(30) {
             let mut factor = Vec::new();
 
-            factorize(n * n, &mut factor);
+            assert!(factorize(n * n, &mut factor).is_ok());
             assert_eq!(n * n, factor.iter().product())
         }
     }
@@ -228,7 +234,7 @@ mod tests {
         {
             let mut factor = Vec::new();
 
-            factorize(n * n, &mut factor);
+            assert!(factorize(n * n, &mut factor).is_ok());
             assert_eq!(n * n, factor.iter().product())
         }
     }
@@ -248,7 +254,7 @@ mod tests {
             let n = p.pow(3);
             let mut factor = Vec::new();
 
-            factorize(n, &mut factor);
+            assert!(factorize(n, &mut factor).is_ok());
             assert_eq!(n, factor.iter().product())
         }
     }
