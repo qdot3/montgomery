@@ -9,7 +9,7 @@ license = "Apache-2.0 OR MIT"
 
 description = "An implementation of Montgomery reduction and other modular arithmetics."
 repository = "https://github.com/qdot3/montgomery"
-keywords = ["montgomery", "modular arithmetics", "primality test"]
+keywords = ["montgomery", "modulo", "prime"]
 categories = ["mathematics"]
 
 [dependencies]
