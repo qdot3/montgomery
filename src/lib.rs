@@ -279,10 +279,11 @@ macro_rules! montgomery_impl {
 
             /// Calculates the modular inverse of `self`, using extended binary GCD algorithm.
             ///
-            /// Modular inverse can be defined iff `self` and the modulus is coprime.
+            /// Modular inverse can be defined if and only if `self` and the modulus is coprime.
             ///
             /// - `Ok(x)` : `x` is the modular inverse.
-            /// - `Err(x)`: `x` is the GCD, where `gcd(0, a)` is defined to be `a`.
+            /// - `Err(x)`: `x` is the GCD of `self` and the `modulus`,
+            /// where `gcd(0, a) = gcd(a, 0)` is defined to be `a`.
             ///
             /// # Time complexity
             ///
@@ -431,4 +432,3 @@ where
         *self = *self * rhs
     }
 }
-
