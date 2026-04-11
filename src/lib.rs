@@ -277,7 +277,12 @@ macro_rules! montgomery_impl {
                 self
             }
 
-            /// Calculates the modular inverse of `self` by extended binary GCD algorithm.
+            /// Calculates the modular inverse of `self`, using extended binary GCD algorithm.
+            ///
+            /// Modular inverse can be defined iff `self` and the modulus is coprime.
+            ///
+            /// - `Ok(x)` : `x` is the modular inverse.
+            /// - `Err(x)`: `x` is the GCD, where `gcd(0, a)` is defined to be `a`.
             ///
             /// # Time complexity
             ///
@@ -293,13 +298,13 @@ macro_rules! montgomery_impl {
             ///
             /// for n in 1..500_000 {
             ///     let n = ctx.modulo(n);
-            ///     assert!(n.inv().is_some_and(|i| (i * n).get() == 1));
+            ///     assert!(n.try_inv().is_ok_and(|i| (i * n).get() == 1));
             /// }
             /// // 0 n = 0 != 1 for any integer n
-            /// assert!(ctx.modulo(0).inv().is_none());
+            /// assert!(ctx.modulo(0).try_inv().is_err());
             /// ```
             #[inline]
-            pub const fn inv(self) -> Option<Self> {
+            pub const fn try_inv(self) -> Result<Self, $single> {
                 let mut a = self.get();
                 let Self { ctx, .. } = self;
 
@@ -326,9 +331,9 @@ macro_rules! montgomery_impl {
 
                 // b = gcd([a], [b])
                 if b == 1 {
-                    Some(Self { value: y, ctx })
+                    Ok(Self { value: y, ctx })
                 } else {
-                    None
+                    Err(b)
                 }
             }
         }
