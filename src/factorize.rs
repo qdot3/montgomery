@@ -69,83 +69,69 @@ pub fn factorize(mut x: u64, factor: &mut Vec<u64>) {
     }
 }
 
-fn quadratic_sieve(x: u64) -> u64 {
-    let r = x.isqrt();
-    if r * r == x {
-        // since x is composed of at moet 3 prime numbers, `r` is prime.
-        return r;
-    }
-
-    for a in r + 1..1 << 32 {
-        let mut d = a * a - x;
-        let mut ingredient = 0;
-
-        ingredient |= d.trailing_zeros() & 1;
-        d >>= d.trailing_zeros();
-
-        if d > 1 {
-            continue;
-        }
-        if ingredient == 0 {
-            todo!("d = b^2 => (a+b)(a-b) = x")
-        }
-    }
-    todo!()
-}
-
 fn pollard_rho(x: u64) -> u64 {
-    // x = Π_i p_i^{k_i} => period T >= lcm {p_i - 1}_i >= max {p_i - 1}_i
     let ctx = Context64::new(x);
     let one = ctx.modulo(1);
-    // LCG => Pollard's "o"
-    // gcd(a-1,x) = 1 => z = y + b/(a-1), z = a z
-    let a1 = ctx.modulo(3);
-    let b1 = ctx.modulo(2);
-    let mut y1 = b1; // z != 0
 
-    let mut prev = y1;
-    let mut prod = one;
-    let mut cnt = 0_u64;
-    while !y1.is_zero() {
-        // 0 -> a * 0 + b = b
-        y1 = a1 * y1 + b1;
-        prod *= y1;
-        cnt += 1;
+    for c in 1..10 {
+        let f = |x: u64| ctx.mul_add(x, x, c);
 
-        // 2^16 < p < 2^32 => 2^8 < sqrt(p) < 2^16
-        if cnt % 256 == 0 || y1.is_zero() {
-            let g = binary_gcd(prod.get(), x);
+        let mut y0 = ctx.modulo(1);
+        let mut y1 = y0;
 
-            if g == 1 {
-                prev = y1;
-                prod = one;
-                continue;
+        let mut prod = one;
+        let mut step = 0;
+        let mut memo = [[0, 0, one.value]; 32];
+
+        'a: while !prod.is_zero() {
+            y0.value = f(y0.value);
+            y1.value = f(f(y1.value));
+            prod *= y1 - y0;
+            step += 1;
+
+            if step % (1 << 5) == 0 {
+                memo[(step >> 5) % (1 << 5)] = [y0.value, y1.value, prod.value];
             }
-            if g > 0 && primality_test(g) {
-                return g;
-            }
+            if step % (1 << 10) == 0 {
+                let g = binary_gcd(prod.value, x);
 
-            let mut cnt = 0;
-            while {
-                prev = a1 * prev + b1;
-                let g = binary_gcd(prev.get(), x);
-
-                if g > 1 {
-                    if primality_test(g) {
-                        return g;
-                    } else {
-                        return pollard_rho(g);
-                    }
+                if g == 1 {
+                    continue 'a;
+                } else if primality_test(g) {
+                    return g;
                 }
 
-                cnt += 1;
-                cnt != 0
-            } {}
-            prod = one;
+                for i in 0..memo.len() {
+                    let g = binary_gcd(memo[i][2], x);
+
+                    if g != 1 {
+                        if primality_test(g) {
+                            return g;
+                        }
+
+                        y0.value = memo[i][0];
+                        y1.value = memo[i][1];
+                        for _ in 0..1 << 5 {
+                            let g = binary_gcd((y0 - y1).value, x);
+
+                            if g != 1 {
+                                if primality_test(g) {
+                                    return g;
+                                } else {
+                                    return pollard_rho(g);
+                                }
+                            }
+
+                            y0.value = f(y0.value);
+                            y1.value = f(f(y1.value));
+                        }
+                    }
+                }
+            }
         }
     }
 
-    panic!("This is a bug in `factorize()` function. Please report following two numbers:\ntarget: {x}\nperiod: {cnt}")
+    panic!("This is a bug in `factorize()` function. Please report the following::\ntarget: {x}")
 }
 
 #[inline(always)]
@@ -232,14 +218,13 @@ mod tests {
         }
     }
 
-    // very slow!
     #[test]
     fn prime_square() {
         for n in (0..1 << 32)
             .rev()
             .step_by(2)
             .filter(|n| primality_test(*n))
-            .take(1)
+            .take(100)
         {
             let mut factor = Vec::new();
 
