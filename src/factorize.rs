@@ -12,7 +12,7 @@ static SMALL_ODD_PRIME_CONTEXT_16: [(u16, u64, u16); 6541] =
 ///
 /// # Time complexity
 ///
-/// O(`x`^(1/4)) expected
+/// O(`x`^0.25) expected
 ///
 /// # Example
 ///
@@ -20,9 +20,11 @@ static SMALL_ODD_PRIME_CONTEXT_16: [(u16, u64, u16); 6541] =
 /// use lib_modulo::factorize::*;
 ///
 /// let mut factor = Vec::new();
-/// factorize(998_244_353 * 1_000_000_007, &mut factor);
+/// // panics if factorization fails
+/// assert!(factorize(998_244_353 * 1_000_000_007, &mut factor).is_ok());
 ///
-/// println!("{:?}", factor)
+/// factor.sort_unstable();
+/// assert_eq!(factor, vec![998_244_353, 1_000_000_007])
 /// ```
 pub fn factorize(mut x: u64, factor: &mut Vec<u64>) -> Result<(), ()> {
     if x < 2 {
@@ -73,6 +75,13 @@ pub fn factorize(mut x: u64, factor: &mut Vec<u64>) -> Result<(), ()> {
     Ok(())
 }
 
+/// Find prime factor of `x`.
+///
+/// This function is probabilistic and may fail.
+///
+/// # Time complexity
+///
+/// *O*(p^0.25) where p is a prime factor of `x`
 fn pollard_rho(x: u64) -> Option<NonZero<u64>> {
     let ctx = Context64::new(x);
     let one = ctx.modulo(1);
@@ -122,8 +131,11 @@ fn pollard_rho(x: u64) -> Option<NonZero<u64>> {
                             if g != 1 {
                                 if primality_test(g) {
                                     return NonZero::new(g);
-                                } else {
+                                } else if g != x {
+                                    // FIXME: `x` is composed of at most 3 primes, so return `x/g`
                                     return pollard_rho(g);
+                                } else {
+                                    break 'a;
                                 }
                             }
 
@@ -135,7 +147,7 @@ fn pollard_rho(x: u64) -> Option<NonZero<u64>> {
             }
         }
 
-        for i in 0..(step % (1 << 10)) >> 5 {
+        'a: for i in 0..(step % (1 << 10)) >> 5 {
             let g = binary_gcd(memo[i][2], x);
 
             if g != 1 {
@@ -151,8 +163,11 @@ fn pollard_rho(x: u64) -> Option<NonZero<u64>> {
                     if g != 1 {
                         if primality_test(g) {
                             return NonZero::new(g);
-                        } else {
+                        } else if g != x {
+                            // FIXME: `x` is composed of at most 3 primes, so return `x/g`
                             return pollard_rho(g);
+                        } else {
+                            break 'a;
                         }
                     }
 
