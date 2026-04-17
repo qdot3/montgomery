@@ -82,14 +82,21 @@ impl Modulus32 {
     #[inline(always)]
     const fn mul(&self, x: u64, y: u64) -> u64 {
         // Plantard reduction: <https://thomas-plantard.github.io/pdf/Plantard21.pdf>
-        let z = x.wrapping_mul(y).wrapping_mul(self.inv_n) >> 32;
-        let z = (z + 1).wrapping_mul(self.n) >> 32;
+        // let z = x.wrapping_mul(y).wrapping_mul(self.inv_n) >> 32;
+        // let z = (z + 1).wrapping_mul(self.n) >> 32;
 
-        if z == self.n {
-            0
-        } else {
-            z
-        }
+        // if z == self.n {
+        //     0
+        // } else {
+        //     z
+        // }
+
+        // modified Plantard multiplication
+        // z = (Q1 2^32 + (2^32 - 1)) P >> 64 (notation is the same as the paper)
+        let z = self.inv_n.wrapping_mul(x).wrapping_mul(y) | u32::MAX as u64;
+        let z = ((z as u128 * self.n as u128) >> 64) as u64;
+        debug_assert!(z < self.n, "this is a bug in lib-modulo");
+        z
     }
 
     /// Calculates the residue of `x` modulo `self`.
