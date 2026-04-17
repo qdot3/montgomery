@@ -28,7 +28,7 @@ pub fn factorize(mut x: u64, factor: &mut Vec<u64>) -> Result<(), ()> {
     }
     factor.reserve(64);
 
-    // trial division by small primes less than 2^16
+    // trial division by small primes less than 2^10
     {
         factor.extend(std::iter::repeat_n(2, x.trailing_zeros() as usize));
         x >>= x.trailing_zeros();

@@ -2,6 +2,8 @@ use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 pub mod factorize;
 pub mod prime;
+mod residue32;
+pub use residue32::*;
 
 pub type Context64 = Context<u64>;
 pub type Context32 = Context<u32>;
