@@ -1,4 +1,4 @@
-use crate::Context64;
+use crate::Modulus64;
 
 // from <https://miller-rabin.appspot.com/>
 /// x < 350_269_456_337
@@ -65,8 +65,8 @@ pub const fn primality_test(x: u64) -> bool {
         (s - 1, x >> s)
     };
 
-    let ctx = Context64::new(x);
-    let one = ctx.modulo(1).value;
+    let modulus = Modulus64::new(x);
+    let one = modulus.residue(1).x;
     // (a - a) r = 0 (mod x), r % x != 0
     let neg_one = x - one;
 
@@ -80,7 +80,7 @@ pub const fn primality_test(x: u64) -> bool {
 
     let mut i = 0;
     'test: while i < witness.len() {
-        let mut mint = ctx.modulo(witness[i]);
+        let mut mint = modulus.residue(witness[i]);
         i += 1;
 
         if mint.is_zero() {
@@ -88,7 +88,7 @@ pub const fn primality_test(x: u64) -> bool {
         }
 
         mint = mint.pow(d);
-        if mint.value == one || mint.value == neg_one {
+        if mint.x == one || mint.x == neg_one {
             continue;
         }
 
@@ -96,8 +96,8 @@ pub const fn primality_test(x: u64) -> bool {
         while s > 0 {
             s -= 1;
 
-            mint.value = mint.ctx.mul(mint.value, mint.value);
-            if mint.value == neg_one {
+            mint.x = mint.modulus.mul(mint.x, mint.x);
+            if mint.x == neg_one {
                 continue 'test;
             }
         }
@@ -134,9 +134,9 @@ const fn primality_test_naive(x: u64) -> bool {
 //     let _ = f.write(b"[\n");
 //     for n in (3..1 << 16).step_by(2) {
 //         if primality_test(n) {
-//             let ctx = Context64::new(n);
+//             let modulus = Context64::new(n);
 
-//             let _ = f.write(format!("({}, {}, {}),\n", ctx.n, ctx.inv_n, ctx.r2_mod_n).as_bytes());
+//             let _ = f.write(format!("({}, {}, {}),\n", modulus.n, modulus.inv_n, modulus.r2_mod_n).as_bytes());
 //         }
 //     }
 //     let _ = f.write(b"]");
