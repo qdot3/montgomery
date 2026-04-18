@@ -1,10 +1,15 @@
-# lib-modulo
+use lib_modulo::Modulus64;
 
-This crate provides fast modular arithmetics with runtime-specified odd modulus.
+fn main() {
+    assert!(primality_test(2));
+    assert!(!primality_test(2 * 3));
 
-## Example
+    // 9-th Mersenne number
+    assert!(primality_test((1 << 61) - 1));
+    // 2^62 - 1 = (2^32 + 1)(2^32 - 1)
+    assert!(!primality_test(u64::MAX));
+}
 
-```rust
 /// Miller-Rabin primality test
 pub fn primality_test(x: u64) -> bool {
     if x == 2 || x == 3 || x == 5 || x == 7 {
@@ -49,17 +54,3 @@ pub fn primality_test(x: u64) -> bool {
 
     true
 }
-```
-
-## Future Plan
-
-These functions will be added:
-
-- `sqrt()`
-- `nth_root()`
-- `log()`
-
-## Further reading
-
-- [Montgomery multiplication](https://doi.org/10.1090/s0025-5718-1985-0777282-x)
-- [Plantard multiplication](https://thomas-plantard.github.io/pdf/Plantard21.pdf)

@@ -1,6 +1,6 @@
 use std::num::NonZero;
 
-use crate::{prime::primality_test, Context64};
+use crate::{Modulus64, prime::primality_test};
 
 /// Factorize integer and writes prime factors to `factor` in any order.
 ///
@@ -28,13 +28,13 @@ pub fn factorize(mut x: u64, factor: &mut Vec<u64>) -> Result<(), ()> {
     }
     factor.reserve(64);
 
-    // trial division by small primes less than 2^16
+    // trial division by small primes less than 2^10
     {
         factor.extend(std::iter::repeat_n(2, x.trailing_zeros() as usize));
         x >>= x.trailing_zeros();
     }
     for &(n, inv_n, r2_mod_n) in SMALL_ODD_PRIME_CONTEXT_16.iter() {
-        let ctx = Context64 {
+        let ctx = Modulus64 {
             n: n as u64,
             inv_n,
             r2_mod_n: r2_mod_n as u64,
@@ -79,31 +79,31 @@ pub fn factorize(mut x: u64, factor: &mut Vec<u64>) -> Result<(), ()> {
 ///
 /// *O*(p^0.25) where p is a prime factor of `x`
 fn pollard_rho(x: u64) -> Option<NonZero<u64>> {
-    let ctx = Context64::new(x);
-    let one = ctx.modulo(1);
+    let ctx = Modulus64::new(x);
+    let one = ctx.residue(1);
 
     for c in 1..100 {
         // a = b (mod x) => f(a) = f(b) (mod x)
         let f = |x: u64| ctx.mul_add(x, x, c);
 
-        let mut y0 = ctx.modulo(1);
+        let mut y0 = ctx.residue(1);
         let mut y1 = y0;
 
         let mut prod = one;
         let mut step = 0;
-        let mut memo = [[0, 0, one.value]; 1 << 5];
+        let mut memo = [[0, 0, one.x]; 1 << 5];
 
         'cycle_detection: while !prod.is_zero() {
-            y0.value = f(y0.value);
-            y1.value = f(f(y1.value));
+            y0.x = f(y0.x);
+            y1.x = f(f(y1.x));
             prod *= y1 - y0;
             step += 1;
 
             if step % (1 << 5) == 0 {
-                memo[(step >> 5) % (1 << 5)] = [y0.value, y1.value, prod.value];
+                memo[(step >> 5) % (1 << 5)] = [y0.x, y1.x, prod.x];
             }
             if step % (1 << 10) == 0 || prod.is_zero() {
-                let g = binary_gcd(prod.value, x);
+                let g = binary_gcd(prod.x, x);
 
                 if g == 1 {
                     continue 'cycle_detection;
@@ -119,10 +119,10 @@ fn pollard_rho(x: u64) -> Option<NonZero<u64>> {
                             return NonZero::new(g);
                         }
 
-                        y0.value = memo[i][0];
-                        y1.value = memo[i][1];
+                        y0.x = memo[i][0];
+                        y1.x = memo[i][1];
                         for _ in 0..1 << 5 {
-                            let g = binary_gcd((y0 - y1).value, x);
+                            let g = binary_gcd((y0 - y1).x, x);
 
                             if g != 1 {
                                 if primality_test(g) {
@@ -135,8 +135,8 @@ fn pollard_rho(x: u64) -> Option<NonZero<u64>> {
                                 }
                             }
 
-                            y0.value = f(y0.value);
-                            y1.value = f(f(y1.value));
+                            y0.x = f(y0.x);
+                            y1.x = f(f(y1.x));
                         }
                     }
                 }
