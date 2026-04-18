@@ -80,7 +80,7 @@ impl Modulus64 {
             ((x >> u64::BITS) as u64, x as u64)
         };
         // FIXME: use `mul_hi()`
-        // y = x n nn = x (mod r) => yl = x_lo
+        // y = x n nn = x (mod r) => y_lo = x_lo
         let y_hi = ((x_lo.wrapping_mul(self.inv_n) as u128 * self.n as u128) >> u64::BITS) as u64;
         // x - y = 0 (mod r), x - y = x (mod n) => z = x inv_r (mod n)
         let (z, b) = x_hi.overflowing_sub(y_hi);
@@ -108,9 +108,7 @@ impl Modulus64 {
     /// ```
     #[inline]
     pub const fn can_divide(&self, x: u64) -> bool {
-        // x < n r
-        let x = self.mul(x, 1);
-        x == 0
+        self.residue(x).is_zero()
     }
 }
 
@@ -121,6 +119,14 @@ impl PartialEq for Modulus64 {
 }
 
 /// Residue with odd modulus which is less than 2^64.
+///
+/// # Fast modular multiplication
+///
+/// [`Residue64`] provides fast modular multiplication called [Montgomery multiplication].
+/// Since this method provides modular multiplication without trial division,
+/// it is approximately twice as fast.
+///
+/// [Montgomery multiplication]: https://doi.org/10.1090/s0025-5718-1985-0777282-x
 ///
 /// # Usage
 ///
@@ -134,13 +140,8 @@ impl PartialEq for Modulus64 {
 /// let n = modulus.residue(2) * modulus.residue(3); // fast
 /// assert_eq!(n.get(), 1);
 /// ```
-///
-/// # Caution
-///
-/// [`Modulo`] values created from different [`Modulus64`]s can technically interact,
-/// but the results will be meaningless.
-/// It is recommended to use a block to ensure that each [`Modulus64`] is dropped
-/// before another one is introduced.
+/// Two residues with different modulus can interact, but the result will be meaningless.
+/// It is highly recommended to use a block to ensure that [`Modulus64`], therefore [`Residue64`]s, are dropped.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Residue64<'a> {
     pub(crate) modulus: &'a Modulus64,
@@ -390,5 +391,89 @@ impl<'a> Neg for Residue64<'a> {
         };
 
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1 << 15))]
+        #[test]
+        fn mul(n in (0..=u64::MAX).prop_map(|n| n | 1), x: u64) {
+            let modulus = Modulus64::new(n);
+
+            let res = modulus.residue(x);
+            assert_eq!(res.get(), x % n)
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1 << 15))]
+        #[test]
+        fn pow(n in (0..=u64::MAX).prop_map(|n| n | 1), x: u64) {
+            let modulus = Modulus64::new(n);
+
+            let res = modulus.residue(x);
+            let mut naive = 1;
+            for i in 0..100 {
+                assert_eq!(res.pow(i).get(), naive, "exp = {i}");
+                naive = (naive as u128 * x as u128 % n as u128) as u64
+            }
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1 << 15))]
+        #[test]
+        fn divisible(n in (0..=u64::MAX).prop_map(|n| n | 1), x: u64) {
+            let modulus = Modulus64::new(n);
+
+            assert_eq!(modulus.can_divide(x), x % n == 0);
+            for m in std::iter::successors(Some(n), |m| m.checked_add(n)).take(100) {
+                assert!(modulus.can_divide(m))
+            }
+        }
+    }
+
+    fn binary_gcd(mut a: u64, mut b: u64) -> u64 {
+        if b == 0 {
+            return a;
+        }
+
+        let shift = (a | b).trailing_zeros();
+        b >>= b.trailing_zeros();
+
+        while a != 0 {
+            a >>= a.trailing_zeros();
+
+            if a < b {
+                (a, b) = (b, a)
+            }
+            a -= b
+        }
+
+        b << shift
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1 << 15))]
+        #[test]
+        fn try_inv(n in (0..=u64::MAX).prop_map(|n| n | 1), x: u64) {
+            let modulus = Modulus64::new(n);
+            let res = modulus.residue(x);
+
+            match res.try_inv() {
+                Ok(inv) => assert_eq!((inv * res).get(), 1),
+                Err(gcd) => {
+                    assert!(res.get() % gcd == 0);
+                    assert!(res.modulus() % gcd == 0);
+                    assert_eq!(binary_gcd(res.get() / gcd, res.modulus() / gcd), 1);
+                }
+            }
+        }
     }
 }
