@@ -178,7 +178,7 @@ impl<'a> Residue64<'a> {
     /// use lib_modulo::Modulus64;
     ///
     /// let n = 101;
-    ///     let modulus  = Modulus64::new(n);
+    /// let modulus  = Modulus64::new(n);
     ///
     /// let n = modulus.residue(99);
     ///
@@ -219,7 +219,7 @@ impl<'a> Residue64<'a> {
     /// use lib_modulo::Modulus64;
     ///
     /// let n = 12_345;
-    ///     let modulus  = Modulus64::new(n);
+    /// let modulus  = Modulus64::new(n);
     ///
     /// let mut pow10 = 1;
     /// for i in 0..1_000 {

@@ -1,14 +1,14 @@
 [package]
 name = "lib-modulo"
 authors = ["qdot3"]
-version = "0.2.2"
+version = "0.3.0"
 edition = "2021"
 
 license = "Apache-2.0 OR MIT"
 
 description = "An implementation of Montgomery reduction and other modular arithmetics."
 repository = "https://github.com/qdot3/montgomery"
-keywords = ["montgomery", "modulo", "prime"]
+keywords = ["montgomery", "plantard", "modulo", "prime"]
 categories = ["mathematics"]
 
 [dependencies]
