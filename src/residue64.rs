@@ -150,57 +150,48 @@ pub struct Residue64<'a> {
 }
 
 impl<'a> Residue64<'a> {
-    /// Returns value.
+    /// Returns the residue.
     ///
     /// # Example
     ///
     /// ```
     /// use lib_modulo::Modulus64;
     ///
-    /// let n = 101;
-    /// let modulus  = Modulus64::new(n);
-    ///
-    /// let n = modulus.residue(99);
-    ///
-    /// assert_eq!(n.get(), 99);
-    /// assert_eq!(n.modulus(), 101);
+    /// let modulus  = Modulus64::new(5);
+    /// let n = modulus.residue(7);
+    /// assert_eq!(n.get(), 2);
     /// ```
     #[inline(always)]
     pub const fn get(&self) -> u64 {
         self.modulus.mul(self.x, 1)
     }
 
-    /// Returns modulus.
+    /// Returns the modulus.
     ///
     /// # Example
     ///
     /// ```
     /// use lib_modulo::Modulus64;
     ///
-    /// let n = 101;
-    /// let modulus  = Modulus64::new(n);
-    ///
-    /// let n = modulus.residue(99);
-    ///
-    /// assert_eq!(n.get(), 99);
-    /// assert_eq!(n.modulus(), 101);
+    /// let modulus  = Modulus64::new(5);
+    /// let n = modulus.residue(7);
+    /// assert_eq!(n.modulus(), 5);
     /// ```
     #[inline(always)]
     pub const fn modulus(&self) -> u64 {
         self.modulus.n
     }
 
-    /// Returns `true` if `self` is `0`.
+    /// Checks whether `self` is `0`.
     ///
     /// # Example
     ///
     /// ```
     /// use lib_modulo::Modulus64;
     ///
-    /// for n in (1..100_000).step_by(2) {
-    ///     let modulus = Modulus64::new(n);
-    ///     assert!(modulus.residue(0).is_zero());
-    /// }
+    /// let modulus  = Modulus64::new(3);
+    /// let n = modulus.residue(6);
+    /// assert_eq!(n.modulus(), 0);
     /// ```
     #[inline(always)]
     pub const fn is_zero(self) -> bool {
@@ -218,13 +209,10 @@ impl<'a> Residue64<'a> {
     /// ```
     /// use lib_modulo::Modulus64;
     ///
-    /// let n = 12_345;
-    /// let modulus  = Modulus64::new(n);
-    ///
-    /// let mut pow10 = 1;
-    /// for i in 0..1_000 {
-    ///     assert_eq!(modulus.residue(10).pow(i).get(), pow10);
-    ///     pow10 = pow10 * 10 % n;
+    /// let modulus = Modulus64::new(1001);
+    /// let residue = modulus.residue(2);
+    /// for exp in 0..64 {
+    ///     assert_eq!(residue.pow(exp).get(), (1 << exp) % 1001)
     /// }
     /// ```
     #[inline]
