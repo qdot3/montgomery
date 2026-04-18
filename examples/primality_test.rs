@@ -27,7 +27,7 @@ pub fn primality_test(x: u64) -> bool {
     let modulus = Modulus64::new(x);
     let one = modulus.residue(1);
 
-    for witness in [2, 325, 9375, 28178, 450775, 9780504, 1795265022] {
+    'test: for witness in [2, 325, 9375, 28178, 450775, 9780504, 1795265022] {
         let mut mint = modulus.residue(witness);
 
         if mint.is_zero() {
@@ -45,7 +45,7 @@ pub fn primality_test(x: u64) -> bool {
 
             mint = mint * mint;
             if mint == -one {
-                continue;
+                continue 'test;
             }
         }
 
