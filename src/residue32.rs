@@ -140,7 +140,7 @@ impl Modulus32 {
         self.residue(x).is_zero()
     }
 
-    /// Checks whether `self` is a prime number.
+    /// Checks whether `x` is a prime number.
     ///
     /// # Panics
     ///
