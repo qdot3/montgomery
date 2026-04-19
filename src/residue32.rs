@@ -1,10 +1,4 @@
-use std::{
-    arch::x86_64::{
-        _mm256_add_epi32, _mm256_mul_epu32, _mm256_set1_epi32, _mm256_set_epi32,
-        _mm256_shuffle_epi32, _MM_PERM_BADC,
-    },
-    ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
-};
+use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 /// Factory of [`Residue32`].
 ///
@@ -21,7 +15,7 @@ pub struct Modulus32 {
 
 impl Modulus32 {
     /// Maximum available modulus.
-    pub const MAX_MODULUS: u32 = 2_654_435_769;
+    pub const MAX: u32 = 2_654_435_769;
 
     /// Creates new context for modular arithmetics.
     ///
@@ -37,7 +31,7 @@ impl Modulus32 {
     /// use lib_modulo::Modulus32;
     ///
     /// // odd integer less than or equal to 2_654_435_769 is allowed.
-    /// let modulus = Modulus32::new(Modulus32::MAX_MODULUS);
+    /// let modulus = Modulus32::new(Modulus32::MAX);
     /// let modulus = Modulus32::new(3);
     ///
     /// // modulus should be an odd integer!
@@ -50,7 +44,7 @@ impl Modulus32 {
             "invalid modulus: modulus should be an odd integer."
         );
         assert!(
-            n <= Self::MAX_MODULUS,
+            n <= Self::MAX,
             "invalid modulus: modulus should be no more than 2_654_435_769."
         );
 
@@ -140,6 +134,25 @@ impl Modulus32 {
     /// # Time complexity
     ///
     /// *O*(log *self*)
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use lib_modulo::Modulus32;
+    ///
+    /// for p in [3, 5, 7, 11, 998_244_353, 1_000_000_007] {
+    ///     assert!(Modulus32::new(p).is_prime())
+    /// }
+    /// // Mersenne numbers (prime)
+    /// for d in [5, 7, 13, 17, 19, 31] {
+    ///     assert!(Modulus32::new((1 << d) - 1).is_prime())
+    /// }
+    ///
+    /// // composite numbers
+    /// for i in (3..).step_by(2).take(500) {
+    ///     assert!(!Modulus32::new(i * (i + 2)).is_prime())
+    /// }
+    /// ```
     #[no_mangle]
     pub const fn is_prime(&self) -> bool {
         /// (SELF >> p) & 1 == 1 iff p is prime
@@ -451,7 +464,7 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1 << 15))]
         #[test]
-        fn mul(n in (0..=2_654_435_769_u32).prop_map(|n| n | 1), x: u32) {
+        fn mul(n in (0..=Modulus32::MAX).prop_map(|n| n | 1), x: u32) {
             let modulus = Modulus32::new(n);
 
             let res = modulus.residue(x);
@@ -462,7 +475,7 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1 << 15))]
         #[test]
-        fn pow(n in (0..=2_654_435_769_u64).prop_map(|n| n | 1), x in 0u64..1 << 32) {
+        fn pow(n in (0..=Modulus32::MAX as u64).prop_map(|n| n | 1), x in 0u64..1 << 32) {
             let modulus = Modulus32::new(n as u32);
 
             let res = modulus.residue(x as u32);
@@ -477,7 +490,7 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1 << 15))]
         #[test]
-        fn divisible(n in (0..=2_654_435_769_u32).prop_map(|n| n | 1), x: u32) {
+        fn divisible(n in (0..=Modulus32::MAX).prop_map(|n| n | 1), x: u32) {
             let modulus = Modulus32::new(n);
 
             assert_eq!(modulus.can_divide(x), x % n == 0);
@@ -510,7 +523,7 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1 << 15))]
         #[test]
-        fn try_inv(n in (0..=2_654_435_769_u32).prop_map(|n| n | 1), x: u32) {
+        fn try_inv(n in (0..=Modulus32::MAX).prop_map(|n| n | 1), x: u32) {
             let modulus = Modulus32::new(n);
             let res = modulus.residue(x);
 
