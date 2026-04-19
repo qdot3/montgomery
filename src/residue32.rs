@@ -165,7 +165,7 @@ impl Modulus32 {
     ///     assert!(!Modulus32::new(i * (i + 2)).is_prime())
     /// }
     /// ```
-    #[no_mangle]
+    #[inline(always)]
     pub const fn is_prime(&self) -> bool {
         /// (SELF >> p) & 1 == 1 iff p is prime
         const TEST_LT_64: u64 = 2891462833508853932;
