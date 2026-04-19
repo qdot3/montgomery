@@ -3,6 +3,7 @@ use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 /// Factory of [`Residue32`].
 ///
 /// See documentation of [`Residue32`] for details.
+#[allow(clippy::derived_hash_with_manual_eq)]
 #[derive(Debug, Clone, Hash, Eq)]
 pub struct Modulus32 {
     // n inv_n = 1 (mod 2^64)
@@ -22,7 +23,7 @@ impl Modulus32 {
     ///
     /// - modulus `n` should be an odd integer.
     /// - modulus `n` should be no more than `2_654_435_769`,
-    /// which is the floor of `2^32 / GOLDEN_RATIO`.
+    ///   which is the floor of `2^32 / GOLDEN_RATIO`.
     ///
     /// # Example
     ///
@@ -69,8 +70,8 @@ impl Modulus32 {
         } else {
             // 128 bit division on 32-bit machine will be slow (no experiment)
             let pow_2_64 = n.wrapping_neg() % n;
-            let pow_2_128 = pow_2_64 * pow_2_64 % n;
-            pow_2_128
+
+            pow_2_64 * pow_2_64 % n
         };
 
         Self { n, inv_n, init }
@@ -119,7 +120,7 @@ impl Modulus32 {
 
         Residue32 {
             x: self.mul(x, self.init),
-            modulus: &self,
+            modulus: self,
         }
     }
 
@@ -142,6 +143,7 @@ impl Modulus32 {
 
 impl PartialEq for Modulus32 {
     fn eq(&self, other: &Self) -> bool {
+        // other fields depend on `n`
         self.n == other.n
     }
 }
@@ -272,7 +274,7 @@ impl<'a> Residue32<'a> {
     ///
     /// - `Ok(x)` : `x` is the modular inverse.
     /// - `Err(x)`: `x` is the GCD of `self` and the `modulus`,
-    /// where `gcd(0, a)` is defined to be `a`.
+    ///   where `gcd(0, a)` is defined to be `a`.
     ///
     /// # Time complexity
     ///

@@ -1,6 +1,6 @@
 use std::num::NonZero;
 
-use crate::{Modulus64, prime::primality_test};
+use crate::{prime::primality_test, Modulus64};
 
 /// Factorize integer and writes prime factors to `factor` in any order.
 ///
@@ -111,16 +111,16 @@ fn pollard_rho(x: u64) -> Option<NonZero<u64>> {
                     return NonZero::new(g);
                 }
 
-                for i in 0..memo.len() {
-                    let g = binary_gcd(memo[i][2], x);
+                for [x0, x1, prod] in memo {
+                    let g = binary_gcd(prod, x);
 
                     if g != 1 {
                         if primality_test(g) {
                             return NonZero::new(g);
                         }
 
-                        y0.x = memo[i][0];
-                        y1.x = memo[i][1];
+                        y0.x = x0;
+                        y1.x = x1;
                         for _ in 0..1 << 5 {
                             let g = binary_gcd((y0 - y1).x, x);
 

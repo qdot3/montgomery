@@ -3,6 +3,7 @@ use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 /// Factory of [`Residue64`].
 ///
 /// See documentation of [`Residue64`] for details.
+#[allow(clippy::derived_hash_with_manual_eq)]
 #[derive(Debug, Clone, Eq, Hash)]
 pub struct Modulus64 {
     // n inv_n = 1 (mod r = 2^32 or 2^64)
@@ -37,11 +38,11 @@ impl Modulus64 {
                 table
             };
             // n inv_n = 1 (mod 8)
-            let mut inv_n = ((TABLE >> (n & 0b1110) * 2) & 0b1111) as u64;
+            let mut inv_n = ((TABLE >> ((n & 0b1110) * 2)) & 0b1111) as u64;
 
             let mut d = const { u64::BITS.ilog2() - 2 };
             while d > 0 {
-                inv_n = inv_n.wrapping_mul((2 as u64).wrapping_sub(n.wrapping_mul(inv_n)));
+                inv_n = inv_n.wrapping_mul(2_u64.wrapping_sub(n.wrapping_mul(inv_n)));
                 d -= 1;
             }
             debug_assert!(n.wrapping_mul(inv_n) == 1);
@@ -58,7 +59,7 @@ impl Modulus64 {
         // `x r2 < r n`
         let x = self.mul(x, self.r2_mod_n);
 
-        Residue64 { x, modulus: &self }
+        Residue64 { x, modulus: self }
     }
 
     /// Performs Montgomery multiplication.
@@ -114,6 +115,7 @@ impl Modulus64 {
 
 impl PartialEq for Modulus64 {
     fn eq(&self, other: &Self) -> bool {
+        // other parameters depend on `n`
         self.n == other.n
     }
 }
@@ -190,8 +192,7 @@ impl<'a> Residue64<'a> {
     /// use lib_modulo::Modulus64;
     ///
     /// let modulus  = Modulus64::new(3);
-    /// let n = modulus.residue(6);
-    /// assert_eq!(n.modulus(), 0);
+    /// assert_eq!(modulus.residue(6).get(), 0);
     /// ```
     #[inline(always)]
     pub const fn is_zero(self) -> bool {
@@ -241,7 +242,7 @@ impl<'a> Residue64<'a> {
     ///
     /// - `Ok(x)` : `x` is the modular inverse.
     /// - `Err(x)`: `x` is the GCD of `self` and the `modulus`,
-    /// where `gcd(0, a) = gcd(a, 0)` is defined to be `a`.
+    ///   where `gcd(0, a) = gcd(a, 0)` is defined to be `a`.
     ///
     /// # Time complexity
     ///

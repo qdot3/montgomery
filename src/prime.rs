@@ -55,7 +55,7 @@ pub const fn primality_test(x: u64) -> bool {
 
     if x < 64 {
         return (SMALL_PRIME >> x) & 1 == 1;
-    } else if (MAY_BE_PRIME_30 >> x % 30) & 1 == 0 || x % 7 == 0 {
+    } else if (MAY_BE_PRIME_30 >> (x % 30)) & 1 == 0 || x % 7 == 0 {
         return false;
     }
 
