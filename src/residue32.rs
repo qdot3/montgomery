@@ -9,8 +9,10 @@ pub struct Modulus32 {
     // n inv_n = 1 (mod 2^64)
     n: u64,
     inv_n: u64,
-    // 2^128 (mod n)
+    // 2^128 (mod n) * inv_n
     init: u64,
+    // ceil(2^64 / n)
+    recip: u64,
 }
 
 impl Modulus32 {
@@ -65,16 +67,21 @@ impl Modulus32 {
             inv_n
         };
 
-        let init = if std::mem::size_of::<usize>() >= std::mem::size_of::<u64>() {
-            ((n as u128).wrapping_neg() % n as u128) as u64
-        } else {
-            // 128 bit division on 32-bit machine will be slow (no experiment)
-            let pow_2_64 = n.wrapping_neg() % n;
-
-            pow_2_64 * pow_2_64 % n
+        let (div, rem) = {
+            let denom = n.wrapping_neg();
+            (denom / n, denom % n)
         };
+        // 2^128 (mod n): magic number for converting integer to Plantard representation.
+        let init = rem * rem % n;
+        // ceil(2^64 / n): magic number for fast remainder algorithm
+        let recip = div.wrapping_add(if rem > 0 { 2 } else { 1 });
 
-        Self { n, inv_n, init }
+        Self {
+            n,
+            inv_n,
+            init: init.wrapping_mul(inv_n),
+            recip,
+        }
     }
 
     /// Performs Plantard multiplication, i.e. `x, y -> x y / -2^64 (mod n)`.
@@ -101,16 +108,21 @@ impl Modulus32 {
     /// ```
     #[inline(always)]
     pub const fn residue(&self, x: u32) -> Residue32<'_> {
-        let mut x = x as u64;
+        // fast remainder algorithm
+        // See <https://onlinelibrary.wiley.com/doi/10.1002/spe.2689> for details
+        let x = {
+            let lo = self.recip.wrapping_mul(x as u64);
+            (lo as u128 * self.n as u128 >> 64) as u64
+        };
 
-        if x * self.init > !(self.n << 32) {
-            x %= self.n
-        }
+        let x = {
+            // multiplication by a constant
+            let x = self.init.wrapping_mul(x) >> 32;
+            let x = (x as u32).wrapping_add(1) as u64 * self.n >> 32;
+            x
+        };
 
-        Residue32 {
-            x: self.mul(x, self.init),
-            modulus: self,
-        }
+        Residue32 { x, modulus: self }
     }
 
     /// Checks whether `x` is divisible by `self`.
@@ -166,7 +178,7 @@ impl Modulus32 {
             return false;
         }
 
-        let one = self.mul(1, self.init);
+        let one = self.residue(1).x;
         let minus_one = self.n - one;
         debug_assert!(one != 0 && minus_one != 0, "this is a bug in lib-modulo");
 
@@ -314,7 +326,7 @@ impl<'a> Residue32<'a> {
     pub const fn pow(self, mut exp: u32) -> Self {
         let Self { mut x, modulus } = self;
         // If `n = 1`, then `init = 0`. Otherwise, `n > 1`.
-        let mut prod = modulus.mul(1, modulus.init);
+        let mut prod = modulus.residue(1).x;
 
         while exp > 1 {
             if exp & 1 == 1 {
