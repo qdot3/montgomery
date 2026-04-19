@@ -142,6 +142,10 @@ impl Modulus32 {
 
     /// Checks whether `self` is a prime number.
     ///
+    /// # Panics
+    ///
+    /// - This may panic if `x` is larger than `2_654_435_769`
+    ///
     /// # Time complexity
     ///
     /// *O*(log *self*)
@@ -151,38 +155,39 @@ impl Modulus32 {
     /// ```
     /// use lib_modulo::Modulus32;
     ///
-    /// for p in [3, 5, 7, 11, 998_244_353, 1_000_000_007] {
-    ///     assert!(Modulus32::new(p).is_prime())
+    /// for p in [2, 3, 5, 7, 11, 998_244_353, 1_000_000_007] {
+    ///     assert!(Modulus32::is_prime(p))
     /// }
     /// // Mersenne numbers (prime)
     /// for d in [5, 7, 13, 17, 19, 31] {
-    ///     assert!(Modulus32::new((1 << d) - 1).is_prime())
+    ///     assert!(Modulus32::is_prime((1 << d) - 1))
     /// }
     ///
     /// // composite numbers
-    /// for i in (3..).step_by(2).take(500) {
-    ///     assert!(!Modulus32::new(i * (i + 2)).is_prime())
+    /// for i in (2..).take(1 << 10) {
+    ///     assert!(!Modulus32::is_prime(i * (i + 1)))
     /// }
     /// ```
     #[inline(always)]
-    pub const fn is_prime(&self) -> bool {
+    pub const fn is_prime(x: u32) -> bool {
         /// (SELF >> p) & 1 == 1 iff p is prime
         const TEST_LT_64: u64 = 2891462833508853932;
         /// (SELF >> n % 30) & 1 == 1 iff n is coprime to 2, 3, and 5
         const TEST_2_3_5: u32 = 545925250;
 
-        if self.n < 64 {
-            return (TEST_LT_64 >> self.n) & 1 == 1;
-        } else if (TEST_2_3_5 >> (self.n % 30)) & 1 == 0 || self.n % 7 == 0 {
+        if x < 64 {
+            return (TEST_LT_64 >> x) & 1 == 1;
+        } else if (TEST_2_3_5 >> (x % 30)) & 1 == 0 || x % 7 == 0 {
             return false;
         }
 
-        let one = self.residue(1).x;
-        let minus_one = self.n - one;
+        let modulus = Self::new(x);
+        let one = modulus.residue(1).x;
+        let minus_one = modulus.n - one;
         debug_assert!(one != 0 && minus_one != 0, "this is a bug in lib-modulo");
 
         let (d, s) = {
-            let n = self.n - 1;
+            let n = modulus.n - 1;
             ((n >> n.trailing_zeros()) as u32, n.trailing_zeros() - 1)
         };
         let mut i = 0;
@@ -190,7 +195,7 @@ impl Modulus32 {
             let witness = [2, 7, 61][i];
             i += 1;
 
-            let w = self.residue(witness);
+            let w = modulus.residue(witness);
             if w.is_zero() {
                 continue;
             }
@@ -203,7 +208,7 @@ impl Modulus32 {
             let mut s = s;
             while s > 0 {
                 s -= 1;
-                w = self.mul(w, w);
+                w = modulus.mul(w, w);
                 if w == minus_one {
                     continue 'test;
                 }
