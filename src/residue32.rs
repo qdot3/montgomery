@@ -156,20 +156,20 @@ impl Modulus32 {
     /// use lib_modulo::Modulus32;
     ///
     /// for p in [2, 3, 5, 7, 11, 998_244_353, 1_000_000_007] {
-    ///     assert!(Modulus32::is_prime(p))
+    ///     assert!(Modulus32::primality_test(p))
     /// }
     /// // Mersenne numbers (prime)
     /// for d in [5, 7, 13, 17, 19, 31] {
-    ///     assert!(Modulus32::is_prime((1 << d) - 1))
+    ///     assert!(Modulus32::primality_test((1 << d) - 1))
     /// }
     ///
     /// // composite numbers
     /// for i in (2..).take(1 << 10) {
-    ///     assert!(!Modulus32::is_prime(i * (i + 1)))
+    ///     assert!(!Modulus32::primality_test(i * (i + 1)))
     /// }
     /// ```
     #[inline(always)]
-    pub const fn is_prime(x: u32) -> bool {
+    pub const fn primality_test(x: u32) -> bool {
         /// (SELF >> p) & 1 == 1 iff p is prime
         const TEST_LT_64: u64 = 2891462833508853932;
         /// (SELF >> n % 30) & 1 == 1 iff n is coprime to 2, 3, and 5
