@@ -1,5 +1,8 @@
 # lib-modulo
 
+[![crate](https://img.shields.io/crates/v/lib_modulo.svg)](https://crates.io/crates/lib_modulo)
+[![documentation](https://docs.rs/lib_modulo/badge.svg)](https://docs.rs/lib_modulo)
+
 This crate provides fast modular arithmetics with runtime-specified odd modulus.
 
 ## Example
