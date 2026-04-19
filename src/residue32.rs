@@ -1,4 +1,10 @@
-use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use std::{
+    arch::x86_64::{
+        _mm256_add_epi32, _mm256_mul_epu32, _mm256_set1_epi32, _mm256_set_epi32,
+        _mm256_shuffle_epi32, _MM_PERM_BADC,
+    },
+    ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+};
 
 /// Factory of [`Residue32`].
 ///
@@ -83,19 +89,8 @@ impl Modulus32 {
     #[inline(always)]
     const fn mul(&self, x: u64, y: u64) -> u64 {
         // Plantard reduction: <https://thomas-plantard.github.io/pdf/Plantard21.pdf>
-        // let z = x.wrapping_mul(y).wrapping_mul(self.inv_n) >> 32;
-        // let z = (z + 1).wrapping_mul(self.n) >> 32;
-
-        // if z == self.n {
-        //     0
-        // } else {
-        //     z
-        // }
-
-        // modified Plantard multiplication
-        // z = (Q1 2^32 + (2^32 - 1)) P >> 64 (notation is the same as the paper)
-        let z = self.inv_n.wrapping_mul(x).wrapping_mul(y) | u32::MAX as u64;
-        let z = ((z as u128 * self.n as u128) >> 64) as u64;
+        let z = self.inv_n.wrapping_mul(x).wrapping_mul(y) >> 32;
+        let z = (z as u32).wrapping_add(1) as u64 * self.n >> 32;
         debug_assert!(z < self.n, "this is a bug in lib-modulo");
         z
     }
@@ -138,6 +133,62 @@ impl Modulus32 {
     #[inline(always)]
     pub const fn can_divide(&self, x: u32) -> bool {
         self.residue(x).is_zero()
+    }
+
+    /// Checks whether `self` is a prime number.
+    ///
+    /// # Time complexity
+    ///
+    /// *O*(log *self*)
+    #[no_mangle]
+    pub const fn is_prime(&self) -> bool {
+        /// (SELF >> p) & 1 == 1 iff p is prime
+        const TEST_LT_64: u64 = 2891462833508853932;
+        /// (SELF >> n % 30) & 1 == 1 iff n is coprime to 2, 3, and 5
+        const TEST_2_3_5: u32 = 545925250;
+
+        if self.n < 64 {
+            return (TEST_LT_64 >> self.n) & 1 == 1;
+        } else if (TEST_2_3_5 >> self.n % 30) & 1 == 0 || self.n % 7 == 0 {
+            return false;
+        }
+
+        let one = self.mul(1, self.init);
+        let minus_one = self.n - one;
+        debug_assert!(one != 0 && minus_one != 0, "this is a bug in lib-modulo");
+
+        let (d, s) = {
+            let n = self.n - 1;
+            ((n >> n.trailing_zeros()) as u32, n.trailing_zeros() - 1)
+        };
+        let mut i = 0;
+        'test: while i < 3 {
+            let witness = [2, 7, 61][i];
+            i += 1;
+
+            let w = self.residue(witness);
+            if w.is_zero() {
+                continue;
+            }
+
+            let mut w = w.pow(d).x;
+            if w == minus_one || w == one {
+                continue;
+            }
+
+            let mut s = s;
+            while s > 0 {
+                s -= 1;
+                w = self.mul(w, w);
+                if w == minus_one {
+                    continue 'test;
+                }
+            }
+
+            return false;
+        }
+
+        true
     }
 }
 
