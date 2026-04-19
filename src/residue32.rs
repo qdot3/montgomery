@@ -148,7 +148,7 @@ impl Modulus32 {
     ///
     /// # Time complexity
     ///
-    /// *O*(log *self*)
+    /// *O*(log `self`)
     ///
     /// # Example
     ///
