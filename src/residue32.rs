@@ -1,4 +1,4 @@
-use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 /// Factory of [`Residue32`].
 ///
@@ -9,13 +9,15 @@ pub struct Modulus32 {
     // n inv_n = 1 (mod 2^64)
     n: u64,
     inv_n: u64,
-    // 2^128 (mod n)
+    // 2^128 (mod n) * inv_n
     init: u64,
+    // ceil(2^64 / n)
+    recip: u64,
 }
 
 impl Modulus32 {
     /// Maximum available modulus.
-    pub const MAX_MODULUS: u32 = 2_654_435_769;
+    pub const MAX: u32 = 2_654_435_769;
 
     /// Creates new context for modular arithmetics.
     ///
@@ -31,7 +33,7 @@ impl Modulus32 {
     /// use lib_modulo::Modulus32;
     ///
     /// // odd integer less than or equal to 2_654_435_769 is allowed.
-    /// let modulus = Modulus32::new(Modulus32::MAX_MODULUS);
+    /// let modulus = Modulus32::new(Modulus32::MAX);
     /// let modulus = Modulus32::new(3);
     ///
     /// // modulus should be an odd integer!
@@ -44,7 +46,7 @@ impl Modulus32 {
             "invalid modulus: modulus should be an odd integer."
         );
         assert!(
-            n <= Self::MAX_MODULUS,
+            n <= Self::MAX,
             "invalid modulus: modulus should be no more than 2_654_435_769."
         );
 
@@ -65,16 +67,21 @@ impl Modulus32 {
             inv_n
         };
 
-        let init = if std::mem::size_of::<usize>() >= std::mem::size_of::<u64>() {
-            ((n as u128).wrapping_neg() % n as u128) as u64
-        } else {
-            // 128 bit division on 32-bit machine will be slow (no experiment)
-            let pow_2_64 = n.wrapping_neg() % n;
-
-            pow_2_64 * pow_2_64 % n
+        let (div, rem) = {
+            let denom = n.wrapping_neg();
+            (denom / n, denom % n)
         };
+        // 2^128 (mod n): magic number for converting integer to Plantard representation.
+        let init = rem * rem % n;
+        // ceil(2^64 / n): magic number for fast remainder algorithm
+        let recip = div.wrapping_add(if rem > 0 { 2 } else { 1 });
 
-        Self { n, inv_n, init }
+        Self {
+            n,
+            inv_n,
+            init: init.wrapping_mul(inv_n),
+            recip,
+        }
     }
 
     /// Performs Plantard multiplication, i.e. `x, y -> x y / -2^64 (mod n)`.
@@ -83,19 +90,8 @@ impl Modulus32 {
     #[inline(always)]
     const fn mul(&self, x: u64, y: u64) -> u64 {
         // Plantard reduction: <https://thomas-plantard.github.io/pdf/Plantard21.pdf>
-        // let z = x.wrapping_mul(y).wrapping_mul(self.inv_n) >> 32;
-        // let z = (z + 1).wrapping_mul(self.n) >> 32;
-
-        // if z == self.n {
-        //     0
-        // } else {
-        //     z
-        // }
-
-        // modified Plantard multiplication
-        // z = (Q1 2^32 + (2^32 - 1)) P >> 64 (notation is the same as the paper)
-        let z = self.inv_n.wrapping_mul(x).wrapping_mul(y) | u32::MAX as u64;
-        let z = ((z as u128 * self.n as u128) >> 64) as u64;
+        let z = self.inv_n.wrapping_mul(x).wrapping_mul(y) >> 32;
+        let z = (z as u32).wrapping_add(1) as u64 * self.n >> 32;
         debug_assert!(z < self.n, "this is a bug in lib-modulo");
         z
     }
@@ -112,16 +108,21 @@ impl Modulus32 {
     /// ```
     #[inline(always)]
     pub const fn residue(&self, x: u32) -> Residue32<'_> {
-        let mut x = x as u64;
+        // fast remainder algorithm
+        // See <https://onlinelibrary.wiley.com/doi/10.1002/spe.2689> for details
+        let x = {
+            let lo = self.recip.wrapping_mul(x as u64);
+            (lo as u128 * self.n as u128 >> 64) as u64
+        };
 
-        if x * self.init > !(self.n << 32) {
-            x %= self.n
-        }
+        let x = {
+            // multiplication by a constant
+            let x = self.init.wrapping_mul(x) >> 32;
+            let x = (x as u32).wrapping_add(1) as u64 * self.n >> 32;
+            x
+        };
 
-        Residue32 {
-            x: self.mul(x, self.init),
-            modulus: self,
-        }
+        Residue32 { x, modulus: self }
     }
 
     /// Checks whether `x` is divisible by `self`.
@@ -138,6 +139,81 @@ impl Modulus32 {
     #[inline(always)]
     pub const fn can_divide(&self, x: u32) -> bool {
         self.residue(x).is_zero()
+    }
+
+    /// Checks whether `self` is a prime number.
+    ///
+    /// # Time complexity
+    ///
+    /// *O*(log *self*)
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use lib_modulo::Modulus32;
+    ///
+    /// for p in [3, 5, 7, 11, 998_244_353, 1_000_000_007] {
+    ///     assert!(Modulus32::new(p).is_prime())
+    /// }
+    /// // Mersenne numbers (prime)
+    /// for d in [5, 7, 13, 17, 19, 31] {
+    ///     assert!(Modulus32::new((1 << d) - 1).is_prime())
+    /// }
+    ///
+    /// // composite numbers
+    /// for i in (3..).step_by(2).take(500) {
+    ///     assert!(!Modulus32::new(i * (i + 2)).is_prime())
+    /// }
+    /// ```
+    #[inline(always)]
+    pub const fn is_prime(&self) -> bool {
+        /// (SELF >> p) & 1 == 1 iff p is prime
+        const TEST_LT_64: u64 = 2891462833508853932;
+        /// (SELF >> n % 30) & 1 == 1 iff n is coprime to 2, 3, and 5
+        const TEST_2_3_5: u32 = 545925250;
+
+        if self.n < 64 {
+            return (TEST_LT_64 >> self.n) & 1 == 1;
+        } else if (TEST_2_3_5 >> self.n % 30) & 1 == 0 || self.n % 7 == 0 {
+            return false;
+        }
+
+        let one = self.residue(1).x;
+        let minus_one = self.n - one;
+        debug_assert!(one != 0 && minus_one != 0, "this is a bug in lib-modulo");
+
+        let (d, s) = {
+            let n = self.n - 1;
+            ((n >> n.trailing_zeros()) as u32, n.trailing_zeros() - 1)
+        };
+        let mut i = 0;
+        'test: while i < 3 {
+            let witness = [2, 7, 61][i];
+            i += 1;
+
+            let w = self.residue(witness);
+            if w.is_zero() {
+                continue;
+            }
+
+            let mut w = w.pow(d).x;
+            if w == minus_one || w == one {
+                continue;
+            }
+
+            let mut s = s;
+            while s > 0 {
+                s -= 1;
+                w = self.mul(w, w);
+                if w == minus_one {
+                    continue 'test;
+                }
+            }
+
+            return false;
+        }
+
+        true
     }
 }
 
@@ -250,7 +326,7 @@ impl<'a> Residue32<'a> {
     pub const fn pow(self, mut exp: u32) -> Self {
         let Self { mut x, modulus } = self;
         // If `n = 1`, then `init = 0`. Otherwise, `n > 1`.
-        let mut prod = modulus.mul(1, modulus.init);
+        let mut prod = modulus.residue(1).x;
 
         while exp > 1 {
             if exp & 1 == 1 {
@@ -400,7 +476,7 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1 << 15))]
         #[test]
-        fn mul(n in (0..=2_654_435_769_u32).prop_map(|n| n | 1), x: u32) {
+        fn mul(n in (0..=Modulus32::MAX).prop_map(|n| n | 1), x: u32) {
             let modulus = Modulus32::new(n);
 
             let res = modulus.residue(x);
@@ -411,7 +487,7 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1 << 15))]
         #[test]
-        fn pow(n in (0..=2_654_435_769_u64).prop_map(|n| n | 1), x in 0u64..1 << 32) {
+        fn pow(n in (0..=Modulus32::MAX as u64).prop_map(|n| n | 1), x in 0u64..1 << 32) {
             let modulus = Modulus32::new(n as u32);
 
             let res = modulus.residue(x as u32);
@@ -426,7 +502,7 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1 << 15))]
         #[test]
-        fn divisible(n in (0..=2_654_435_769_u32).prop_map(|n| n | 1), x: u32) {
+        fn divisible(n in (0..=Modulus32::MAX).prop_map(|n| n | 1), x: u32) {
             let modulus = Modulus32::new(n);
 
             assert_eq!(modulus.can_divide(x), x % n == 0);
@@ -459,7 +535,7 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1 << 15))]
         #[test]
-        fn try_inv(n in (0..=2_654_435_769_u32).prop_map(|n| n | 1), x: u32) {
+        fn try_inv(n in (0..=Modulus32::MAX).prop_map(|n| n | 1), x: u32) {
             let modulus = Modulus32::new(n);
             let res = modulus.residue(x);
 
