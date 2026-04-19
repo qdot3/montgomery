@@ -91,7 +91,7 @@ impl Modulus32 {
     const fn mul(&self, x: u64, y: u64) -> u64 {
         // Plantard reduction: <https://thomas-plantard.github.io/pdf/Plantard21.pdf>
         let z = self.inv_n.wrapping_mul(x).wrapping_mul(y) >> 32;
-        let z = (z as u32).wrapping_add(1) as u64 * self.n >> 32;
+        let z = ((z as u32).wrapping_add(1) as u64 * self.n) >> 32;
         debug_assert!(z < self.n, "this is a bug in lib-modulo");
         z
     }
@@ -112,14 +112,13 @@ impl Modulus32 {
         // See <https://onlinelibrary.wiley.com/doi/10.1002/spe.2689> for details
         let x = {
             let lo = self.recip.wrapping_mul(x as u64);
-            (lo as u128 * self.n as u128 >> 64) as u64
+            ((lo as u128 * self.n as u128) >> 64) as u64
         };
 
         let x = {
             // multiplication by a constant
             let x = self.init.wrapping_mul(x) >> 32;
-            let x = (x as u32).wrapping_add(1) as u64 * self.n >> 32;
-            x
+            ((x as u32).wrapping_add(1) as u64 * self.n) >> 32
         };
 
         Residue32 { x, modulus: self }
@@ -174,7 +173,7 @@ impl Modulus32 {
 
         if self.n < 64 {
             return (TEST_LT_64 >> self.n) & 1 == 1;
-        } else if (TEST_2_3_5 >> self.n % 30) & 1 == 0 || self.n % 7 == 0 {
+        } else if (TEST_2_3_5 >> (self.n % 30)) & 1 == 0 || self.n % 7 == 0 {
             return false;
         }
 
