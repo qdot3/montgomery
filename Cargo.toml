@@ -8,7 +8,7 @@ license = "Apache-2.0 OR MIT"
 
 description = "Fast modular arithmetics"
 repository = "https://github.com/qdot3/montgomery"
-keywords = ["montgomery", "plantard", "modulo", "prime"]
+keywords = ["montgomery", "plantard", "modulo", "prime", "residue"]
 categories = ["mathematics"]
 
 [dependencies]

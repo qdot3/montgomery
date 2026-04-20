@@ -120,12 +120,12 @@ impl PartialEq for Modulus64 {
     }
 }
 
-/// Residue with odd modulus which is less than 2^64.
+/// A residue with an odd modulus not exceeding 2^64.
 ///
 /// # Fast modular multiplication
 ///
-/// [`Residue64`] provides fast modular multiplication called [Montgomery multiplication].
-/// Since this method provides modular multiplication without trial division,
+/// [`Residue64`] provides fast modular multiplication using [Montgomery multiplication].
+/// Since this method provides modular multiplication without division,
 /// it is approximately twice as fast.
 ///
 /// [Montgomery multiplication]: https://doi.org/10.1090/s0025-5718-1985-0777282-x
