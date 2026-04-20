@@ -168,6 +168,7 @@ impl Modulus32 {
     ///     assert!(!Modulus32::primality_test(i * (i + 1)).unwrap())
     /// }
     /// ```
+    #[allow(clippy::result_unit_err)]
     #[inline(always)]
     pub const fn primality_test(x: u32) -> Result<bool, ()> {
         /// (SELF >> p) & 1 == 1 iff p is prime
