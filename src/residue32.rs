@@ -138,7 +138,7 @@ impl Modulus32 {
     /// ```
     #[inline(always)]
     pub const fn can_divide(&self, x: u32) -> bool {
-        self.residue(x).is_zero()
+        self.recip.wrapping_mul(x as u64) <= self.recip.wrapping_sub(1)
     }
 
     /// Checks whether `x` is a prime number.
@@ -612,6 +612,14 @@ mod tests {
             for m in std::iter::successors(Some(n), |m| m.checked_add(n)).take(100) {
                 assert!(modulus.can_divide(m))
             }
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1 << 15))]
+        #[test]
+        fn divisible_by_1(x: u32) {
+            assert!(Modulus32::new(1).can_divide(x))
         }
     }
 
