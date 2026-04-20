@@ -186,7 +186,7 @@ impl Modulus32 {
         let modulus = Self::new(x);
         let one = modulus.residue(1).x;
         let minus_one = modulus.n - one;
-        debug_assert!(one != 0 && minus_one != 0, "this is a bug in lib-modulo");
+        debug_assert!(one != 0 && minus_one != 0, "since x > 1");
 
         let (d, s) = {
             let n = modulus.n - 1;
@@ -406,7 +406,7 @@ impl<'a> Residue32<'a> {
         }
     }
 
-    /// Solves discrete logarithm problem and returns the *smallest* one.
+    /// Solves discrete logarithm problem and returns the *smallest* solution.
     ///
     /// Consider using [`FxHashMap`] or other fast hash maps.
     ///
@@ -442,7 +442,6 @@ impl<'a> Residue32<'a> {
         S: BuildHasher,
     {
         if rhs == 1 {
-            // 0^0 = 1 ?????????
             return Some(0);
         } else if self.is_zero() {
             return None;
