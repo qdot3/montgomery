@@ -1,4 +1,5 @@
 use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use std::{collections::HashMap, hash::BuildHasher};
 
 /// Factory of [`Residue32`].
 ///
@@ -142,9 +143,8 @@ impl Modulus32 {
 
     /// Checks whether `x` is a prime number.
     ///
-    /// # Panics
-    ///
-    /// - This may panic if `x` is larger than `2_654_435_769`
+    /// This may fail if `x` is larger than `2_654_435_769`.
+    /// Use 64-bit version.
     ///
     /// # Time complexity
     ///
@@ -156,29 +156,31 @@ impl Modulus32 {
     /// use lib_modulo::Modulus32;
     ///
     /// for p in [2, 3, 5, 7, 11, 998_244_353, 1_000_000_007] {
-    ///     assert!(Modulus32::primality_test(p))
+    ///     assert!(Modulus32::primality_test(p).unwrap())
     /// }
     /// // Mersenne numbers (prime)
     /// for d in [5, 7, 13, 17, 19, 31] {
-    ///     assert!(Modulus32::primality_test((1 << d) - 1))
+    ///     assert!(Modulus32::primality_test((1 << d) - 1).unwrap())
     /// }
     ///
     /// // composite numbers
     /// for i in (2..).take(1 << 10) {
-    ///     assert!(!Modulus32::primality_test(i * (i + 1)))
+    ///     assert!(!Modulus32::primality_test(i * (i + 1)).unwrap())
     /// }
     /// ```
     #[inline(always)]
-    pub const fn primality_test(x: u32) -> bool {
+    pub const fn primality_test(x: u32) -> Result<bool, ()> {
         /// (SELF >> p) & 1 == 1 iff p is prime
         const TEST_LT_64: u64 = 2891462833508853932;
         /// (SELF >> n % 30) & 1 == 1 iff n is coprime to 2, 3, and 5
         const TEST_2_3_5: u32 = 545925250;
 
         if x < 64 {
-            return (TEST_LT_64 >> x) & 1 == 1;
+            return Ok((TEST_LT_64 >> x) & 1 == 1);
         } else if (TEST_2_3_5 >> (x % 30)) & 1 == 0 || x % 7 == 0 {
-            return false;
+            return Ok(false);
+        } else if x > Self::MAX {
+            return Err(());
         }
 
         let modulus = Self::new(x);
@@ -214,10 +216,10 @@ impl Modulus32 {
                 }
             }
 
-            return false;
+            return Ok(false);
         }
 
-        true
+        Ok(true)
     }
 }
 
@@ -228,13 +230,14 @@ impl PartialEq for Modulus32 {
     }
 }
 
-/// Residue with odd modulus which is no more than `2_654_435_769`.
+/// A residue with an odd modulus not exceeding `2_654_435_769`.
 ///
 /// # Fast modular multiplication
 ///
-/// [`Residue32`] provides fast modular multiplication called [Plantard multiplication].
-/// This method saves one multiplication when either of two values of a multiplication is used multiple times.
-/// Therefore, [`Residue32::pow`] will be faster than that using [Montgomery multiplication].
+/// [`Residue32`] provides fast modular multiplication using [Plantard multiplication].
+/// This method eliminates one multiplication when one of the operands is reused multiple times.
+/// As a result, [`Residue32::pow`] and other operations are typically
+/// faster than implementations based on [Montgomery multiplication].
 ///
 /// [Plantard multiplication]: https://thomas-plantard.github.io/pdf/Plantard21.pdf
 /// [Montgomery multiplication]: https://doi.org/10.1090/s0025-5718-1985-0777282-x
@@ -401,6 +404,102 @@ impl<'a> Residue32<'a> {
         } else {
             Err(b)
         }
+    }
+
+    /// Solves discrete logarithm problem and returns the *smallest* one.
+    ///
+    /// Consider using [`FxHashMap`] or other fast hash maps.
+    ///
+    /// [`FxHashMap`]: https://docs.rs/rustc-hash/latest/rustc_hash/type.FxHashMap.html
+    ///
+    /// # Time complexity
+    ///
+    /// *O*(√`modulus`)
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use lib_modulo::Modulus32;
+    /// use std::collections::HashMap;
+    ///
+    /// let modulus = Modulus32::new(2025);
+    /// let mut map = HashMap::new();
+    /// let mut offset = 0;
+    /// for d in 0..5000 {
+    ///     let pow2 = modulus.residue(2).pow(d).get() as u32;
+    ///     if pow2 == 1 {
+    ///         offset = d;
+    ///     }
+    ///     assert_eq!(modulus.residue(2).log(pow2, &mut map), Some(d - offset));
+    /// }
+    /// // Since `5 + 2025 i` is multiple of 5, it is not power of 2, 3, or 7
+    /// assert!(modulus.residue(2).log(5, &mut map).is_none());
+    /// assert!(modulus.residue(3).log(5, &mut map).is_none());
+    /// assert!(modulus.residue(7).log(5, &mut map).is_none());
+    /// ```
+    pub fn log<S>(self, rhs: u32, map: &mut HashMap<u64, u32, S>) -> Option<u32>
+    where
+        S: BuildHasher,
+    {
+        if rhs == 1 {
+            // 0^0 = 1 ?????????
+            return Some(0);
+        } else if self.is_zero() {
+            return None;
+        }
+
+        let mut offset = 1;
+        let mut gcd = 1;
+        let mut factor = self;
+        // O(log n)
+        while let Err(g) = factor.try_inv().map_err(|g| g as u32) {
+            if g == gcd {
+                break;
+            }
+
+            offset += 1;
+            gcd = g;
+            factor *= self;
+        }
+
+        if rhs % gcd != 0 {
+            return None;
+        }
+
+        // solve `x^k = y (mod modulus)` by baby-step giant-step algorithm
+        let modulus = Modulus32::new(self.modulus() as u32 / gcd);
+        let x = modulus.residue(self.get() as u32);
+        let y = modulus.residue(rhs) * modulus.residue(factor.get() as u32).try_inv().unwrap();
+
+        let sqrt = (modulus.n as u32).isqrt() + 1;
+        map.clear();
+        map.reserve(sqrt as usize);
+
+        {
+            let mut lhs = modulus.residue(1);
+            map.insert(lhs.x, offset);
+            for i in offset + 1..offset + sqrt {
+                lhs *= x;
+                // choose smaller
+                map.entry(lhs.x).or_insert(i);
+            }
+        }
+        {
+            if let Some(i) = map.get(&y.x) {
+                return Some(*i);
+            }
+
+            let mut rhs = y;
+            let inv = x.try_inv().unwrap().pow(sqrt);
+            for j in 1..sqrt {
+                rhs *= inv;
+                if let Some(i) = map.get(&rhs.x) {
+                    return Some(j * sqrt + i);
+                }
+            }
+        }
+
+        None
     }
 }
 
