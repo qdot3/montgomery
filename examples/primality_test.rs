@@ -28,14 +28,14 @@ pub fn primality_test(x: u64) -> bool {
     let one = modulus.residue(1);
 
     'test: for witness in [2, 325, 9375, 28178, 450775, 9780504, 1795265022] {
-        let mut mint = modulus.residue(witness);
+        let mut witness = modulus.residue(witness);
 
-        if mint.is_zero() {
+        if witness.is_zero() {
             continue;
         }
 
-        mint = mint.pow(d);
-        if mint == one || mint == -one {
+        witness = witness.pow(d);
+        if witness == one || witness == -one {
             continue;
         }
 
@@ -43,8 +43,8 @@ pub fn primality_test(x: u64) -> bool {
         while s > 0 {
             s -= 1;
 
-            mint = mint * mint;
-            if mint == -one {
+            witness = witness * witness;
+            if witness == -one {
                 continue 'test;
             }
         }
