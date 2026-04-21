@@ -120,7 +120,7 @@ impl PartialEq for Modulus64 {
     }
 }
 
-/// A residue with an odd modulus not exceeding `2^64`.
+/// A residue with an odd modulus that fits in `2^64`.
 ///
 /// # Fast modular multiplication
 ///
