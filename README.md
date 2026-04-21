@@ -19,7 +19,7 @@ These techniques significantly improve performance, especially when the modulus 
 
 - 🚀 Fast modular multiplication without division
 - ⚡ Optimized 32-bit and 64-bit implementations
-- 🔒 Supports any odd modulus
+- 💡 Supports any runtime-specified odd modulus
 
 ## Example
 
