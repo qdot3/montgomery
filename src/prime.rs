@@ -1,61 +1,14 @@
 use crate::Modulus64;
 
-// from <https://miller-rabin.appspot.com/>
-/// x < 350_269_456_337
-static SET3: [u64; 3] = [
-    4230279247111683200,
-    14694767155120705706,
-    16641139526367750375,
-];
-/// x < 7_999_252_175_582_851
-static SET5: [u64; 5] = [
-    2,
-    4130806001517,
-    149795463772692060,
-    186635894390467037,
-    3967304179347715805,
-];
-/// x < 2^64
-static SET7: [u64; 7] = [2, 325, 9375, 28178, 450775, 9780504, 1795265022];
-
 /// Performs deterministic Miller-Rabin primality test.
 ///
 /// # Time complexity
 ///
 /// *O*(log *x*)
 pub const fn primality_test(x: u64) -> bool {
-    /// `x` is prime iff `(test >> x) & 1 == 1`
-    const SMALL_PRIME: u64 = {
-        let mut test = 0;
-        let mut x = 64;
-        while x > 0 {
-            x -= 1;
-
-            test = (test << 1) | if primality_test_naive(x) { 1 } else { 0 };
-        }
-        test
-    };
-
-    /// remove multiples of 2, 3 or 5
-    const MAY_BE_PRIME_30: u32 = {
-        let mut table = 0;
-
-        let mut n = 0;
-        while n < 30 {
-            table |= if n % 2 == 0 || n % 3 == 0 || n % 5 == 0 {
-                0 // composite
-            } else {
-                1 // may be prime
-            } << n;
-            n += 1;
-        }
-
-        table
-    };
-
     if x < 64 {
-        return (SMALL_PRIME >> x) & 1 == 1;
-    } else if (MAY_BE_PRIME_30 >> (x % 30)) & 1 == 0 || x % 7 == 0 {
+        return (super::PRIME_LT_64 >> x) & 1 == 1;
+    } else if (super::COPRIME_2_3_5 >> (x % 30)) & 1 == 0 || x % 7 == 0 {
         return false;
     }
 
@@ -70,11 +23,21 @@ pub const fn primality_test(x: u64) -> bool {
     // (a - a) r = 0 (mod x), r % x != 0
     let neg_one = x - one;
 
+    // from <https://miller-rabin.appspot.com/>
     let witness = if x < 350_269_456_337 {
+        static SET3: [u64; 3] = [0x3AB4F88FF0CC7C80, 0xCBEE4CDF120C10AA, 0xE6F1343B0EDCA8E7];
         SET3.as_slice()
     } else if x < 7_999_252_175_582_851 {
+        static SET5: [u64; 5] = [
+            2,
+            0x3C1C7396F6D,
+            0x2142E2E3F22DE5C,
+            0x297105B6B7B29DD,
+            0x370EB221A5F176DD,
+        ];
         SET5.as_slice()
     } else {
+        static SET7: [u64; 7] = [2, 325, 9375, 28178, 450775, 9780504, 1795265022];
         SET7.as_slice()
     };
 
@@ -108,23 +71,6 @@ pub const fn primality_test(x: u64) -> bool {
     true
 }
 
-const fn primality_test_naive(x: u64) -> bool {
-    if x < 2 {
-        return false;
-    }
-
-    let mut d = 1;
-    while d < x.isqrt() {
-        d += 1;
-
-        if x % d == 0 {
-            return false;
-        }
-    }
-
-    true
-}
-
 // #[test]
 // fn f() {
 //     use std::io::Write;
@@ -147,6 +93,23 @@ mod tests {
     use rand::{rng, Rng};
 
     use super::*;
+
+    const fn primality_test_naive(x: u64) -> bool {
+        if x < 2 {
+            return false;
+        }
+
+        let mut d = 1;
+        while d < x.isqrt() {
+            d += 1;
+
+            if x % d == 0 {
+                return false;
+            }
+        }
+
+        true
+    }
 
     #[test]
     fn small() {

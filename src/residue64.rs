@@ -121,6 +121,8 @@ impl Modulus64 {
     pub const fn can_divide(&self, x: u64) -> bool {
         self.residue(x).is_zero()
     }
+
+    
 }
 
 impl PartialEq for Modulus64 {
@@ -172,6 +174,7 @@ impl<'a> Residue64<'a> {
     /// // save memory
     /// let residues: Vec<Raw64> = (1..=1000).map(|x| modulus.residue(x).into_raw()).collect();
     /// ```
+    #[inline(always)]
     pub fn into_raw(self) -> Raw64 {
         self.into()
     }
@@ -427,12 +430,14 @@ impl Raw64 {
     ///
     /// This does not perform validation or reduction.
     /// The caller must ensure the modulus is correct for this value.
+    #[inline(always)]
     pub const fn into_residue<'a>(self, modulus: &'a Modulus64) -> Residue64<'a> {
         Residue64 { modulus, x: self.x }
     }
 }
 
 impl<'a> From<Residue64<'a>> for Raw64 {
+    #[inline(always)]
     fn from(residue: Residue64<'a>) -> Self {
         Self { x: residue.x }
     }

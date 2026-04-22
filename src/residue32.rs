@@ -169,16 +169,10 @@ impl Modulus32 {
     /// }
     /// ```
     #[allow(clippy::result_unit_err)]
-    #[inline(always)]
     pub const fn primality_test(x: u32) -> Result<bool, ()> {
-        /// (SELF >> p) & 1 == 1 iff p is prime
-        const TEST_LT_64: u64 = 2891462833508853932;
-        /// (SELF >> n % 30) & 1 == 1 iff n is coprime to 2, 3, and 5
-        const TEST_2_3_5: u32 = 545925250;
-
         if x < 64 {
-            return Ok((TEST_LT_64 >> x) & 1 == 1);
-        } else if (TEST_2_3_5 >> (x % 30)) & 1 == 0 || x % 7 == 0 {
+            return Ok((super::PRIME_LT_64 >> x) & 1 == 1);
+        } else if (super::COPRIME_2_3_5 >> (x % 30)) & 1 == 0 || x % 7 == 0 {
             return Ok(false);
         } else if x > Self::MAX {
             return Err(());
@@ -277,6 +271,7 @@ impl<'a> Residue32<'a> {
     /// // save memory
     /// let residues: Vec<Raw32> = (1..=1000).map(|x| modulus.residue(x).into_raw()).collect();
     /// ```
+    #[inline(always)]
     pub fn into_raw(self) -> Raw32 {
         self.into()
     }
@@ -603,12 +598,14 @@ impl Raw32 {
     ///
     /// This does not perform validation or reduction.
     /// The caller must ensure the modulus is correct for this value.
+    #[inline(always)]
     pub const fn into_residue<'a>(self, modulus: &'a Modulus32) -> Residue32<'a> {
         Residue32 { modulus, x: self.x }
     }
 }
 
 impl<'a> From<Residue32<'a>> for Raw32 {
+    #[inline(always)]
     fn from(residue: Residue32<'a>) -> Self {
         Self { x: residue.x }
     }

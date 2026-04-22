@@ -46,3 +46,42 @@ pub use residue32::*;
 
 mod residue64;
 pub use residue64::*;
+
+/// small prime numbers less than 64
+///
+/// `(SELF >> x) & 1 == 1` iff `x` is prime
+const PRIME_LT_64: u64 = {
+    let mut test = u64::MAX << 2;
+    let mut x = 2;
+    while x < 64 {
+        if (test >> x) & 1 == 1 {
+            let mut y = x * x;
+            while y < 64 {
+                test &= !(1 << y);
+                y += x;
+            }
+        }
+
+        x += 1;
+    }
+    test
+};
+
+/// multiples of 2, 3 or 5.
+///
+/// `(SELF >> x % 30) & 1 == 1` iff `x` is coprime to 2, 3, and 5
+const COPRIME_2_3_5: u32 = {
+    let mut table = 0;
+
+    let mut n = 0;
+    while n < 30 {
+        table |= if n % 2 == 0 || n % 3 == 0 || n % 5 == 0 {
+            0 // composite
+        } else {
+            1 // may be prime
+        } << n;
+        n += 1;
+    }
+
+    table
+};
