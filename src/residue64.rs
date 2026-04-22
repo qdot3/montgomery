@@ -162,6 +162,19 @@ pub struct Residue64<'a> {
 }
 
 impl<'a> Residue64<'a> {
+    /// Extract the internal representation of `self`.
+    ///
+    /// ```
+    /// use lib_modulo::{Modulus64, Raw64};
+    ///
+    /// let modulus = Modulus64::new(1001);
+    /// // save memory
+    /// let residues: Vec<Raw64> = (1..=1000).map(|x| modulus.residue(x).into_raw()).collect();
+    /// ```
+    pub fn into_raw(self) -> Raw64 {
+        self.into()
+    }
+
     /// Returns the residue.
     ///
     /// # Example
@@ -390,6 +403,37 @@ impl<'a> Neg for Residue64<'a> {
         };
 
         self
+    }
+}
+
+/// An internal representation of [`Residue64`] without an associated [`Modulus64`].
+///
+/// Conceptually, [`Residue64`] = [`Raw64`] + [`Modulus64`].
+/// [`Raw64`] stores the value part alone, without holding a reference to its modulus.
+///
+/// This separation is useful for reducing the size of collections of [`Residue64`]
+/// and for avoiding self-referential structures when a type needs to contain both
+/// a residue and its modulus.
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub struct Raw64 {
+    x: u64,
+}
+
+impl Raw64 {
+    /// Attaches a modulus and returns a [`Residue64`].
+    ///
+    /// # Caution
+    ///
+    /// This does not perform validation or reduction.
+    /// The caller must ensure the modulus is correct for this value.
+    pub const fn into_residue<'a>(self, modulus: &'a Modulus64) -> Residue64<'a> {
+        Residue64 { modulus, x: self.x }
+    }
+}
+
+impl<'a> From<Residue64<'a>> for Raw64 {
+    fn from(residue: Residue64<'a>) -> Self {
+        Self { x: residue.x }
     }
 }
 
