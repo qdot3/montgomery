@@ -54,6 +54,16 @@ impl Modulus64 {
         Self { n, inv_n, r2_mod_n }
     }
 
+    /// Calculates the residue of `x` modulo `self`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use lib_modulo::Modulus64;
+    ///
+    /// let modulus = Modulus64::new(5);
+    /// assert_eq!(modulus.residue(8).get(), 3)
+    /// ```
     #[inline(always)]
     pub const fn residue(&self, x: u64) -> Residue64<'_> {
         // `x r2 < r n`

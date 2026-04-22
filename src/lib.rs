@@ -27,6 +27,7 @@
 //! ```
 #![doc = include_str!("../examples/rolling_hash.rs")]
 //! ```
+#![warn(missing_docs)]
 pub mod factorize;
 pub mod prime;
 
