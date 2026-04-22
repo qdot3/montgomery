@@ -152,6 +152,7 @@ impl PartialEq for Modulus64 {
 /// let n = modulus.residue(2) * modulus.residue(3); // fast
 /// assert_eq!(n.get(), 1);
 /// ```
+///
 /// Two residues with different modulus can interact, but the result will be meaningless.
 /// It is highly recommended to use a block to ensure that [`Modulus64`], therefore [`Residue64`]s, are dropped.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]

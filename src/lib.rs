@@ -12,12 +12,21 @@
 //!
 //! # Guide
 //!
+//! ## Basic usage
+//!
 //! Depending on the modulus, you can choose between two types:
 //!
 //! - [`Residue32`]: for odd moduli up to `2_654_435_769` (~ `2^31.3`)
 //! - [`Residue64`]: for any odd modulus that fits in `u64`
 //!
 //! Since [`Residue32`] is typically faster than [`Residue64`], prefer using it whenever possible.
+//!
+//! ## Advanced usage
+//!
+//! `Residue` types hold a reference to their corresponding `Modulus` for convenience.
+//! However, when storing many residues with the same modulus, this can be memory-intensive.
+//! In such cases, [`Raw32`] or [`Raw64`] can be used instead.
+//! The caller is responsible for associating them with the correct modulus.
 //!
 //! # Example
 //!
