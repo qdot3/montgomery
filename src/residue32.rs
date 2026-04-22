@@ -268,6 +268,19 @@ pub struct Residue32<'a> {
 }
 
 impl<'a> Residue32<'a> {
+    /// Extract the internal representation of `self`.
+    ///
+    /// ```
+    /// use lib_modulo::{Modulus32, Raw32};
+    ///
+    /// let modulus = Modulus32::new(1001);
+    /// // save memory
+    /// let residues: Vec<Raw32> = (1..=1000).map(|x| modulus.residue(x).into_raw()).collect();
+    /// ```
+    pub fn into_raw(self) -> Raw32 {
+        self.into()
+    }
+
     /// Checks whether `self` is `0`.
     ///
     /// # Example
@@ -438,7 +451,7 @@ impl<'a> Residue32<'a> {
     /// assert!(modulus.residue(3).log(5, &mut map).is_none());
     /// assert!(modulus.residue(7).log(5, &mut map).is_none());
     /// ```
-    pub fn log<S>(self, rhs: u32, map: &mut HashMap<u64, u32, S>) -> Option<u32>
+    pub fn log<S>(self, rhs: u32, map: &mut HashMap<Raw32, u32, S>) -> Option<u32>
     where
         S: BuildHasher,
     {
@@ -477,15 +490,15 @@ impl<'a> Residue32<'a> {
 
         {
             let mut lhs = modulus.residue(1);
-            map.insert(lhs.x, offset);
+            map.insert(lhs.into(), offset);
             for i in offset + 1..offset + sqrt {
                 lhs *= x;
                 // choose smaller
-                map.entry(lhs.x).or_insert(i);
+                map.entry(lhs.into()).or_insert(i);
             }
         }
         {
-            if let Some(i) = map.get(&y.x) {
+            if let Some(i) = map.get(&y.into()) {
                 return Some(*i);
             }
 
@@ -493,7 +506,7 @@ impl<'a> Residue32<'a> {
             let inv = x.try_inv().unwrap().pow(sqrt);
             for j in 1..sqrt {
                 rhs *= inv;
-                if let Some(i) = map.get(&rhs.x) {
+                if let Some(i) = map.get(&rhs.into()) {
                     return Some(j * sqrt + i);
                 }
             }
@@ -570,6 +583,36 @@ impl<'a> Neg for Residue32<'a> {
     }
 }
 
+/// An internal representation of [`Residue32`] without an associated [`Modulus32`].
+///
+/// Conceptually, [`Residue32`] = [`Raw32`] + [`Modulus32`].
+/// [`Raw32`] stores the value part alone, without holding a reference to its modulus.
+///
+/// This separation is useful for reducing the size of collections of [`Residue32`]
+/// and for avoiding self-referential structures when a type needs to contain both
+/// a residue and its modulus.
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub struct Raw32 {
+    x: u64,
+}
+
+impl Raw32 {
+    /// Attaches a modulus and returns a [`Residue32`].
+    ///
+    /// # Caution
+    ///
+    /// This does not perform validation or reduction.
+    /// The caller must ensure the modulus is correct for this value.
+    pub const fn into_residue<'a>(self, modulus: &'a Modulus32) -> Residue32<'a> {
+        Residue32 { modulus, x: self.x }
+    }
+}
+
+impl<'a> From<Residue32<'a>> for Raw32 {
+    fn from(residue: Residue32<'a>) -> Self {
+        Self { x: residue.x }
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
