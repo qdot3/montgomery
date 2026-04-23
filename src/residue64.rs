@@ -121,8 +121,6 @@ impl Modulus64 {
     pub const fn can_divide(&self, x: u64) -> bool {
         self.residue(x).is_zero()
     }
-
-    
 }
 
 impl PartialEq for Modulus64 {
@@ -175,8 +173,8 @@ impl<'a> Residue64<'a> {
     /// let residues: Vec<Raw64> = (1..=1000).map(|x| modulus.residue(x).into_raw()).collect();
     /// ```
     #[inline(always)]
-    pub fn into_raw(self) -> Raw64 {
-        self.into()
+    pub const fn into_raw(self) -> Raw64 {
+        Raw64 { x: self.x }
     }
 
     /// Returns the residue.

@@ -12,12 +12,6 @@ fn main() {
 
 /// Miller-Rabin primality test
 pub fn primality_test(x: u64) -> bool {
-    if x == 2 || x == 3 || x == 5 || x == 7 {
-        return true;
-    } else if x % 2 == 0 || x % 3 == 0 || x % 5 == 0 || x % 7 == 0 {
-        return false;
-    }
-
     let (s, d) = {
         let x = x - 1;
         let s = x.trailing_zeros();

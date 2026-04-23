@@ -1,12 +1,12 @@
 [package]
 name = "lib-modulo"
 authors = ["qdot3"]
-version = "0.6.0-alpha-5"
+version = "0.6.0-alpha-6"
 edition = "2021"
 
 license = "Apache-2.0 OR MIT"
 
-description = "Fast modular arithmetics"
+description = "Fast modular arithmetic"
 repository = "https://github.com/qdot3/montgomery"
 keywords = ["montgomery", "plantard", "modulo", "prime", "residue"]
 categories = ["mathematics"]

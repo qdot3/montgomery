@@ -140,82 +140,6 @@ impl Modulus32 {
     pub const fn can_divide(&self, x: u32) -> bool {
         self.recip.wrapping_mul(x as u64) <= self.recip.wrapping_sub(1)
     }
-
-    /// Checks whether `x` is a prime number.
-    ///
-    /// This may fail if `x` is larger than `2_654_435_769`.
-    /// Use 64-bit version.
-    ///
-    /// # Time complexity
-    ///
-    /// *O*(log `self`)
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use lib_modulo::Modulus32;
-    ///
-    /// for p in [2, 3, 5, 7, 11, 998_244_353, 1_000_000_007] {
-    ///     assert!(Modulus32::primality_test(p).unwrap())
-    /// }
-    /// // Mersenne numbers (prime)
-    /// for d in [5, 7, 13, 17, 19, 31] {
-    ///     assert!(Modulus32::primality_test((1 << d) - 1).unwrap())
-    /// }
-    ///
-    /// // composite numbers
-    /// for i in (2..).take(1 << 10) {
-    ///     assert!(!Modulus32::primality_test(i * (i + 1)).unwrap())
-    /// }
-    /// ```
-    #[allow(clippy::result_unit_err)]
-    pub const fn primality_test(x: u32) -> Result<bool, ()> {
-        if x < 64 {
-            return Ok((super::PRIME_LT_64 >> x) & 1 == 1);
-        } else if (super::COPRIME_2_3_5 >> (x % 30)) & 1 == 0 || x % 7 == 0 {
-            return Ok(false);
-        } else if x > Self::MAX {
-            return Err(());
-        }
-
-        let modulus = Self::new(x);
-        let one = modulus.residue(1).x;
-        let minus_one = modulus.n - one;
-        debug_assert!(one != 0 && minus_one != 0, "since x > 1");
-
-        let (d, s) = {
-            let n = modulus.n - 1;
-            ((n >> n.trailing_zeros()) as u32, n.trailing_zeros() - 1)
-        };
-        let mut i = 0;
-        'test: while i < 3 {
-            let witness = [2, 7, 61][i];
-            i += 1;
-
-            let w = modulus.residue(witness);
-            if w.is_zero() {
-                continue;
-            }
-
-            let mut w = w.pow(d).x;
-            if w == minus_one || w == one {
-                continue;
-            }
-
-            let mut s = s;
-            while s > 0 {
-                s -= 1;
-                w = modulus.mul(w, w);
-                if w == minus_one {
-                    continue 'test;
-                }
-            }
-
-            return Ok(false);
-        }
-
-        Ok(true)
-    }
 }
 
 impl PartialEq for Modulus32 {
@@ -272,8 +196,8 @@ impl<'a> Residue32<'a> {
     /// let residues: Vec<Raw32> = (1..=1000).map(|x| modulus.residue(x).into_raw()).collect();
     /// ```
     #[inline(always)]
-    pub fn into_raw(self) -> Raw32 {
-        self.into()
+    pub const fn into_raw(self) -> Raw32 {
+        Raw32 { x: self.x }
     }
 
     /// Checks whether `self` is `0`.
@@ -698,6 +622,91 @@ mod tests {
                     assert_eq!(binary_gcd(res.get() / gcd, res.modulus() / gcd), 1);
                 }
             }
+        }
+    }
+}
+
+mod primality_test {
+    use super::super::{COPRIME_2_3_5, PRIME_LT_64};
+    use super::Modulus32;
+
+    impl Modulus32 {
+        /// Checks whether `x` is a prime number.
+        ///
+        /// This may fail if `x` is larger than `2_654_435_769`.
+        /// Use 64-bit version.
+        ///
+        /// # Time complexity
+        ///
+        /// *O*(log `self`)
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use lib_modulo::Modulus32;
+        ///
+        /// // prime numbers
+        /// for p in [2, 3, 5, 7, 11, 998_244_353, 1_000_000_007, (1 << 31) - 1] {
+        ///     assert!(p <= Modulus32::MAX);
+        ///     assert_eq!(Modulus32::primality_test(p), Ok(true))
+        /// }
+        /// // composite numbers
+        /// for c in (2..).take(1 << 10) {
+        ///     assert!(c * (c + 1) <= Modulus32::MAX);
+        ///     assert_eq!(Modulus32::primality_test(c * (c + 1)), Ok(false));
+        /// }
+        ///
+        /// // may or may not fail for large integers
+        /// assert_eq!(Modulus32::primality_test(u32::MAX), Ok(false));
+        /// assert_eq!(Modulus32::primality_test(u32::MAX - 2), Err(()));
+        /// ```
+        #[allow(clippy::result_unit_err)]
+        pub const fn primality_test(x: u32) -> Result<bool, ()> {
+            if x < 64 {
+                return Ok((PRIME_LT_64 >> x) & 1 == 1);
+            } else if (COPRIME_2_3_5 >> (x % 30)) & 1 == 0 || x % 7 == 0 {
+                return Ok(false);
+            } else if x > Self::MAX {
+                return Err(());
+            }
+
+            let modulus = Self::new(x);
+            let one = modulus.residue(1).x;
+            let minus_one = modulus.n - one;
+            debug_assert!(one != 0 && minus_one != 0, "since x > 1");
+
+            let (d, s) = {
+                let n = modulus.n - 1;
+                ((n >> n.trailing_zeros()) as u32, n.trailing_zeros() - 1)
+            };
+            let mut i = 0;
+            'test: while i < 3 {
+                let witness = [2, 7, 61][i];
+                i += 1;
+
+                let w = modulus.residue(witness);
+                if w.is_zero() {
+                    continue;
+                }
+
+                let mut w = w.pow(d).x;
+                if w == minus_one || w == one {
+                    continue;
+                }
+
+                let mut s = s;
+                while s > 0 {
+                    s -= 1;
+                    w = modulus.mul(w, w);
+                    if w == minus_one {
+                        continue 'test;
+                    }
+                }
+
+                return Ok(false);
+            }
+
+            Ok(true)
         }
     }
 }
