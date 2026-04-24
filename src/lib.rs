@@ -36,8 +36,10 @@
 //! ```
 #![doc = include_str!("../examples/rolling_hash.rs")]
 //! ```
-#![warn(missing_docs)]
-#![warn(missing_debug_implementations)]
+#![warn(missing_docs, missing_debug_implementations)]
+#![warn(clippy::all, clippy::pedantic, clippy::cargo)]
+#![deny(rust_2018_idioms)]
+#![forbid(unsafe_code)]
 pub mod factorize;
 pub mod prime;
 

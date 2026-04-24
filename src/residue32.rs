@@ -680,8 +680,8 @@ mod primality_test {
                 ((n >> n.trailing_zeros()) as u32, n.trailing_zeros() - 1)
             };
             let mut i = 0;
-            'test: while i < 3 {
-                let witness = [2, 7, 61][i];
+            'test: while i < 2 {
+                let witness = [2, 6987029][i];
                 i += 1;
 
                 let w = modulus.residue(witness);
@@ -706,7 +706,84 @@ mod primality_test {
                 return Ok(false);
             }
 
-            Ok(true)
+            /// 2- and 6987029-SPRP with trial division by 2, 3, 5 and 7
+            static SPRP: Eytzinger<36> = Eytzinger::new([
+                280601, 1357441, 2748023, 5044033, 9863461, 41604109, 55729957, 60696661, 80375707,
+                129357061, 134696801, 137763037, 157405249, 419184481, 421942951, 437866087,
+                471535373, 511215521, 551313001, 628868467, 756271909, 841217653, 858687103,
+                884304037, 1104194521, 1168256953, 1282568741, 1518290707, 1709909293, 1720630759,
+                1894909141, 1920301951, 2311558021, 2311575001, 2494660033,
+            ]);
+            Ok(!SPRP.contains(x))
+        }
+    }
+
+    pub struct Eytzinger<const N: usize> {
+        /// data in Eytzinger layout
+        data: [u32; N],
+    }
+
+    impl<const N: usize> Eytzinger<N> {
+        pub const fn new<const M: usize>(src: [u32; M]) -> Self {
+            let _: () = const {
+                assert!(N == M + 1);
+            };
+
+            /// Sort sorted `src` in Eytzinger's order
+            const fn eytzinger_sort(src: &[u32], tar: &mut [u32], i: usize, k: usize) -> usize {
+                assert!(src.len() + 1 == tar.len());
+
+                if k <= src.len() {
+                    let mut i = eytzinger_sort(src, tar, i, k * 2);
+                    tar[k] = src[i];
+                    i += 1;
+                    eytzinger_sort(src, tar, i, k * 2 + 1)
+                } else {
+                    i
+                }
+            }
+
+            let mut tar = [0; N];
+            eytzinger_sort(&src, &mut tar, 0, 1);
+
+            Self { data: tar }
+        }
+
+        pub const fn contains(&self, x: u32) -> bool {
+            // TODO: prefetch data
+            let mut i = 1;
+            while i < self.data.len() {
+                i = i * 2 + (x > self.data[i]) as usize
+            }
+            i >>= i.trailing_ones() + 1;
+
+            x == self.data[i]
+        }
+    }
+
+    #[test]
+    fn eytzinger_sort() {
+        let src: [u32; 31] = std::array::from_fn(|i| i as u32);
+        let e = Eytzinger::<32>::new(src);
+        assert_eq!(
+            e.data,
+            [
+                0, 15, 7, 23, 3, 11, 19, 27, 1, 5, 9, 13, 17, 21, 25, 29, 0, 2, 4, 6, 8, 10, 12,
+                14, 16, 18, 20, 22, 24, 26, 28, 30
+            ]
+        )
+    }
+
+    #[test]
+    fn filter_sprp() {
+        for sprp in [
+            280601, 1357441, 2748023, 5044033, 9863461, 41604109, 55729957, 60696661, 80375707,
+            129357061, 134696801, 137763037, 157405249, 419184481, 421942951, 437866087, 471535373,
+            511215521, 551313001, 628868467, 756271909, 841217653, 858687103, 884304037,
+            1104194521, 1168256953, 1282568741, 1518290707, 1709909293, 1720630759, 1894909141,
+            1920301951, 2311558021, 2311575001, 2494660033,
+        ] {
+            assert_eq!(Modulus32::primality_test(sprp), Ok(false), "{sprp}")
         }
     }
 }
