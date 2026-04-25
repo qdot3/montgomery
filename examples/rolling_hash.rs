@@ -63,14 +63,14 @@ fn main() {
         random_range(2..prime),
     );
 
-    // `src` contains these
+    // contains these
     assert!(rolling_hash.contains(b"Rust"));
     assert!(rolling_hash.contains(b"fast"));
     assert!(rolling_hash.contains(b"safe"));
     assert!(rolling_hash.contains(b"memory-efficient"));
 
-    // `src` does not contain these
+    // does not contain these
     assert!(!rolling_hash.contains(b"slow"));
     assert!(!rolling_hash.contains(b"inconvenient"));
-    assert!(!rolling_hash.contains(b"compilation is slow"));
+    assert!(!rolling_hash.contains(b"compilation is slow")); // 🤔
 }

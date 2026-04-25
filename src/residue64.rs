@@ -13,7 +13,7 @@ pub struct Modulus64 {
 }
 
 impl Modulus64 {
-    /// Calculates some parameters for Montgomery multiplication.
+    /// Creates new instance with the given modulus.
     ///
     /// # Panics
     ///

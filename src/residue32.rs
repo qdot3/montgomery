@@ -19,7 +19,7 @@ impl Modulus32 {
     /// Maximum available modulus.
     pub const MAX: u32 = 2_654_435_769;
 
-    /// Creates new context for modular arithmetics.
+    /// Creates new instance with the given modulus.
     ///
     /// # Panics
     ///

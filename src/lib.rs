@@ -8,7 +8,7 @@ High-performance word-size modular arithmetic using Barrett, Montgomery or Plant
 
 ## Overview
 
-Naive modular multiplication typically requires widening the operands,followed by an expensive division.
+Naive modular multiplication typically requires widening the operands, followed by an expensive division.
 This crate avoids division by using:
 
 - [Barrett multiplication](https://doi.org/10.1007/3-540-47721-7_24)
@@ -22,7 +22,7 @@ These techniques significantly improve performance, especially when the modulus 
 
 | Type             | Modulus             | Notes                 |
 |------------------|---------------------|-----------------------|
-| [`Modulus32`]    | odd, ≲ 2^31.3       | fastest               |
+| [`Modulus32`]    | odd, < 2^31.3...    | fastest               |
 | [`Modulus32Any`] | in `[2, 2^32)`      | supports even moduli  |
 | [`Modulus64`]    | odd, fits in `u64`  | supports large moduli |
 
