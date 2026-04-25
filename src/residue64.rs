@@ -283,13 +283,13 @@ impl<'a> Residue64<'a> {
     ///
     /// for n in 1..500_000 {
     ///     let n = modulus.residue(n);
-    ///     assert!(n.try_inv().is_ok_and(|i| (i * n).get() == 1));
+    ///     assert!(n.inv().is_ok_and(|i| (i * n).get() == 1));
     /// }
     /// // 0 n = 0 != 1 for any integer n
-    /// assert!(modulus.residue(0).try_inv().is_err());
+    /// assert!(modulus.residue(0).inv().is_err());
     /// ```
     #[inline]
-    pub const fn try_inv(self) -> Result<Self, u64> {
+    pub const fn inv(self) -> Result<Self, u64> {
         let mut a = self.get();
         let Self { modulus, .. } = self;
 
@@ -509,11 +509,11 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1 << 15))]
         #[test]
-        fn try_inv(n in (0..=u64::MAX).prop_map(|n| n | 1), x: u64) {
+        fn inv(n in (0..=u64::MAX).prop_map(|n| n | 1), x: u64) {
             let modulus = Modulus64::new(n);
             let res = modulus.residue(x);
 
-            match res.try_inv() {
+            match res.inv() {
                 Ok(inv) => assert_eq!((inv * res).get(), 1),
                 Err(gcd) => {
                     assert!(res.get() % gcd == 0);

@@ -304,12 +304,12 @@ impl<'a> Residue32<'a> {
     /// let modulus = Modulus32::new(3 * 5);
     ///
     /// let residue = modulus.residue(2);
-    /// assert!(residue.try_inv().is_ok_and(|inv| (inv * residue).get() == 1));
+    /// assert!(residue.inv().is_ok_and(|inv| (inv * residue).get() == 1));
     ///
     /// let residue = modulus.residue(6);
-    /// assert!(residue.try_inv().is_err_and(|gcd| gcd == 3));
+    /// assert!(residue.inv().is_err_and(|gcd| gcd == 3));
     /// ```
-    pub const fn try_inv(self) -> Result<Self, u64> {
+    pub const fn inv(self) -> Result<Self, u64> {
         // invariant: [a] x = a, [a] y = b (mod n), where [a] is initial value.
         let mut a = self.get();
         let mut b = self.modulus();
@@ -384,7 +384,7 @@ impl<'a> Residue32<'a> {
         let mut gcd = 1;
         let mut factor = self;
         // O(log n)
-        while let Err(g) = factor.try_inv().map_err(|g| g as u32) {
+        while let Err(g) = factor.inv().map_err(|g| g as u32) {
             if g == gcd {
                 break;
             }
@@ -401,7 +401,7 @@ impl<'a> Residue32<'a> {
         // solve `x^k = y (mod modulus)` by baby-step giant-step algorithm
         let modulus = Modulus32::new(self.modulus() as u32 / gcd);
         let x = modulus.residue(self.get() as u32);
-        let y = modulus.residue(rhs) * modulus.residue(factor.get() as u32).try_inv().unwrap();
+        let y = modulus.residue(rhs) * modulus.residue(factor.get() as u32).inv().unwrap();
 
         let sqrt = (modulus.n as u32).isqrt() + 1;
         map.clear();
@@ -422,7 +422,7 @@ impl<'a> Residue32<'a> {
             }
 
             let mut rhs = y;
-            let inv = x.try_inv().unwrap().pow(sqrt);
+            let inv = x.inv().unwrap().pow(sqrt);
             for j in 1..sqrt {
                 rhs *= inv;
                 if let Some(i) = map.get(&rhs.into()) {
@@ -610,11 +610,11 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1 << 15))]
         #[test]
-        fn try_inv(n in (0..=Modulus32::MAX).prop_map(|n| n | 1), x: u32) {
+        fn inv(n in (0..=Modulus32::MAX).prop_map(|n| n | 1), x: u32) {
             let modulus = Modulus32::new(n);
             let res = modulus.residue(x);
 
-            match res.try_inv() {
+            match res.inv() {
                 Ok(inv) => assert_eq!((inv * res).get(), 1),
                 Err(gcd) => {
                     assert!(res.get() % gcd == 0);
@@ -622,168 +622,6 @@ mod tests {
                     assert_eq!(binary_gcd(res.get() / gcd, res.modulus() / gcd), 1);
                 }
             }
-        }
-    }
-}
-
-mod primality_test {
-    use super::super::{COPRIME_2_3_5, PRIME_LT_64};
-    use super::Modulus32;
-
-    impl Modulus32 {
-        /// Checks whether `x` is a prime number.
-        ///
-        /// This may fail if `x` is larger than `2_654_435_769`.
-        /// Use 64-bit version.
-        ///
-        /// # Time complexity
-        ///
-        /// *O*(log `self`)
-        ///
-        /// # Example
-        ///
-        /// ```
-        /// use lib_modulo::Modulus32;
-        ///
-        /// // prime numbers
-        /// for p in [2, 3, 5, 7, 11, 998_244_353, 1_000_000_007, (1 << 31) - 1] {
-        ///     assert!(p <= Modulus32::MAX);
-        ///     assert_eq!(Modulus32::primality_test(p), Ok(true))
-        /// }
-        /// // composite numbers
-        /// for c in (2..).take(1 << 10) {
-        ///     assert!(c * (c + 1) <= Modulus32::MAX);
-        ///     assert_eq!(Modulus32::primality_test(c * (c + 1)), Ok(false));
-        /// }
-        ///
-        /// // may or may not fail for large integers
-        /// assert_eq!(Modulus32::primality_test(u32::MAX), Ok(false));
-        /// assert_eq!(Modulus32::primality_test(u32::MAX - 2), Err(()));
-        /// ```
-        #[allow(clippy::result_unit_err)]
-        pub const fn primality_test(x: u32) -> Result<bool, ()> {
-            if x < 64 {
-                return Ok((PRIME_LT_64 >> x) & 1 == 1);
-            } else if (COPRIME_2_3_5 >> (x % 30)) & 1 == 0 || x % 7 == 0 {
-                return Ok(false);
-            } else if x > Self::MAX {
-                return Err(());
-            }
-
-            let modulus = Self::new(x);
-            let one = modulus.residue(1).x;
-            let minus_one = modulus.n - one;
-            debug_assert!(one != 0 && minus_one != 0, "since x > 1");
-
-            let (d, s) = {
-                let n = modulus.n - 1;
-                ((n >> n.trailing_zeros()) as u32, n.trailing_zeros() - 1)
-            };
-            let mut i = 0;
-            'test: while i < 2 {
-                let witness = [2, 6987029][i];
-                i += 1;
-
-                let w = modulus.residue(witness);
-                if w.is_zero() {
-                    continue;
-                }
-
-                let mut w = w.pow(d).x;
-                if w == minus_one || w == one {
-                    continue;
-                }
-
-                let mut s = s;
-                while s > 0 {
-                    s -= 1;
-                    w = modulus.mul(w, w);
-                    if w == minus_one {
-                        continue 'test;
-                    }
-                }
-
-                return Ok(false);
-            }
-
-            /// 2- and 6987029-SPRP with trial division by 2, 3, 5 and 7
-            static SPRP: Eytzinger<36> = Eytzinger::new([
-                280601, 1357441, 2748023, 5044033, 9863461, 41604109, 55729957, 60696661, 80375707,
-                129357061, 134696801, 137763037, 157405249, 419184481, 421942951, 437866087,
-                471535373, 511215521, 551313001, 628868467, 756271909, 841217653, 858687103,
-                884304037, 1104194521, 1168256953, 1282568741, 1518290707, 1709909293, 1720630759,
-                1894909141, 1920301951, 2311558021, 2311575001, 2494660033,
-            ]);
-            Ok(!SPRP.contains(x))
-        }
-    }
-
-    pub struct Eytzinger<const N: usize> {
-        /// data in Eytzinger layout
-        data: [u32; N],
-    }
-
-    impl<const N: usize> Eytzinger<N> {
-        pub const fn new<const M: usize>(src: [u32; M]) -> Self {
-            let _: () = const {
-                assert!(N == M + 1);
-            };
-
-            /// Sort sorted `src` in Eytzinger's order
-            const fn eytzinger_sort(src: &[u32], tar: &mut [u32], i: usize, k: usize) -> usize {
-                assert!(src.len() + 1 == tar.len());
-
-                if k <= src.len() {
-                    let mut i = eytzinger_sort(src, tar, i, k * 2);
-                    tar[k] = src[i];
-                    i += 1;
-                    eytzinger_sort(src, tar, i, k * 2 + 1)
-                } else {
-                    i
-                }
-            }
-
-            let mut tar = [0; N];
-            eytzinger_sort(&src, &mut tar, 0, 1);
-
-            Self { data: tar }
-        }
-
-        pub const fn contains(&self, x: u32) -> bool {
-            // TODO: prefetch data
-            let mut i = 1;
-            while i < self.data.len() {
-                i = i * 2 + (x > self.data[i]) as usize
-            }
-            i >>= i.trailing_ones() + 1;
-
-            x == self.data[i]
-        }
-    }
-
-    #[test]
-    fn eytzinger_sort() {
-        let src: [u32; 31] = std::array::from_fn(|i| i as u32);
-        let e = Eytzinger::<32>::new(src);
-        assert_eq!(
-            e.data,
-            [
-                0, 15, 7, 23, 3, 11, 19, 27, 1, 5, 9, 13, 17, 21, 25, 29, 0, 2, 4, 6, 8, 10, 12,
-                14, 16, 18, 20, 22, 24, 26, 28, 30
-            ]
-        )
-    }
-
-    #[test]
-    fn filter_sprp() {
-        for sprp in [
-            280601, 1357441, 2748023, 5044033, 9863461, 41604109, 55729957, 60696661, 80375707,
-            129357061, 134696801, 137763037, 157405249, 419184481, 421942951, 437866087, 471535373,
-            511215521, 551313001, 628868467, 756271909, 841217653, 858687103, 884304037,
-            1104194521, 1168256953, 1282568741, 1518290707, 1709909293, 1720630759, 1894909141,
-            1920301951, 2311558021, 2311575001, 2494660033,
-        ] {
-            assert_eq!(Modulus32::primality_test(sprp), Ok(false), "{sprp}")
         }
     }
 }
