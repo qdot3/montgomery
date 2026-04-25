@@ -81,7 +81,8 @@ impl Modulus32Any {
     /// Checks if `x` is divisible by `self`.
     #[inline(always)]
     pub const fn can_divide(&self, x: u32) -> bool {
-        self.magic.wrapping_mul(x as u64) <= self.magic.wrapping_sub(1)
+        // since `self.n` is not 1, `self.magic` never overflow
+        self.magic.wrapping_mul(x as u64) < self.magic
     }
 
     /// Performs modular multiplication.

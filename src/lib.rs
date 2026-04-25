@@ -4,16 +4,17 @@
 [![crate](https://img.shields.io/crates/v/lib_modulo.svg)](https://crates.io/crates/lib_modulo)
 [![documentation](https://docs.rs/lib_modulo/badge.svg)](https://docs.rs/lib_modulo)
 
-High-performance word-size modular arithmetic using Montgomery, Plantard, or Barrett multiplication.
+High-performance word-size modular arithmetic using Barrett, Montgomery or Plantard multiplication.
 
 ## Overview
 
 Naive modular multiplication typically requires widening the operands,followed by an expensive division.
 This crate avoids division by using:
 
-- Montgomery multiplication
-- Plantard multiplication
-- Barrett multiplication
+- [Barrett multiplication](https://doi.org/10.1007/3-540-47721-7_24)
+- [Montgomery multiplication](https://doi.org/10.1090/s0025-5718-1985-0777282-x)
+- [Plantard multiplication](https://thomas-plantard.github.io/pdf/Plantard21.pdf)
+
 
 These techniques significantly improve performance, especially when the modulus is determined at *runtime*.
 
@@ -46,7 +47,6 @@ This allows the use of large prime moduli without overflow.
 #![warn(clippy::all, clippy::pedantic, clippy::cargo)]
 #![deny(rust_2018_idioms)]
 #![forbid(unsafe_code)]
-pub mod factorize;
 pub mod prime;
 
 mod residue32;

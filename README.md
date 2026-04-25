@@ -48,12 +48,12 @@ See more [examples].
 
 ## Further reading
 
-Fast modular multiplication algorithm
+### Fast modular multiplication algorithms (alphabetical order)
 
+- [Barrett multiplication](https://doi.org/10.1007/3-540-47721-7_24)
 - [Montgomery multiplication](https://doi.org/10.1090/s0025-5718-1985-0777282-x)
 - [Plantard multiplication](https://thomas-plantard.github.io/pdf/Plantard21.pdf)
-- [Barrett multiplication](https://doi.org/10.1007/3-540-47721-7_24)
 
-Fast remainder algorithm
+### Fast remainder algorithm
 
-- <https://onlinelibrary.wiley.com/doi/10.1002/spe.2689>
+- [Lemire's remainder algorithm](https://doi.org/10.1002/spe.2689)
