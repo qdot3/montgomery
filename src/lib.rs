@@ -46,6 +46,9 @@ pub mod prime;
 mod residue32;
 pub use residue32::*;
 
+mod residue32any;
+pub use residue32any::Modulus32Any;
+
 mod residue64;
 pub use residue64::*;
 
