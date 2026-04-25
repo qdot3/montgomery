@@ -1,39 +1,45 @@
-//! # Fast modular arithmetic
-//!
-//! Provides efficient types for modular arithmetic.
-//!
-//! Naive modular multiplication typically requires widening the operands
-//! followed by an expensive division.
-//! This crate avoids division by using [Montgomery] or [Plantard] multiplication,
-//! enabling faster modular operations.
-//!
-//! [Plantard]: https://thomas-plantard.github.io/pdf/Plantard21.pdf
-//! [Montgomery]: https://doi.org/10.1090/s0025-5718-1985-0777282-x
-//!
-//! # Guide
-//!
-//! ## Basic usage
-//!
-//! Depending on the modulus, you can choose between two types:
-//!
-//! - [`Residue32`]: for odd moduli up to `2_654_435_769` (~ `2^31.3`)
-//! - [`Residue64`]: for any odd modulus that fits in `u64`
-//!
-//! Since [`Residue32`] is typically faster than [`Residue64`], prefer using it whenever possible.
-//!
-//! ## Advanced usage
-//!
-//! `Residue` types hold a reference to their corresponding `Modulus` for convenience.
-//! However, when storing many residues with the same modulus, this can be memory-intensive.
-//! In such cases, [`Raw32`] or [`Raw64`] can be used instead.
-//! The caller is responsible for associating them with the correct modulus.
-//!
-//! # Example
-//!
-//! Below is an implementation of a rolling hash algorithm using [`Residue64`].
-//! This allows the use of large prime moduli without overflow.
-//!
-//! ```
+/*!
+# Fast Modular Arithmetic
+
+[![crate](https://img.shields.io/crates/v/lib_modulo.svg)](https://crates.io/crates/lib_modulo)
+[![documentation](https://docs.rs/lib_modulo/badge.svg)](https://docs.rs/lib_modulo)
+
+High-performance word-size modular arithmetic using Montgomery, Plantard, or Barrett multiplication.
+
+## Overview
+
+Naive modular multiplication typically requires widening the operands,followed by an expensive division.
+This crate avoids division by using:
+
+- Montgomery multiplication
+- Plantard multiplication
+- Barrett multiplication
+
+These techniques significantly improve performance, especially when the modulus is determined at *runtime*.
+
+## Selection guide
+
+| Type           | Modulus             | Notes                 |
+|----------------|---------------------|-----------------------|
+| `Modulus32`    | odd, ≲ 2^31.3       | fastest               |
+| `Modulus32Any` | in `[2, 2^32)`      | supports even moduli  |
+| `Modulus64`    | odd, fits in `u64`  | supports large moduli |
+
+## Advanced usage
+
+`Residue` types hold a reference to their corresponding `Modulus` for convenience.
+However, when storing many residues sharing the same modulus, this can be memory-intensive.
+
+In such cases, [`Raw32`] or [`Raw64`] can be used instead.
+The caller is responsible for associating them with the correct modulus.
+
+# Example
+
+Below is an implementation of a rolling hash algorithm using [`Residue64`].
+This allows the use of large prime moduli without overflow.
+
+```
+*/
 #![doc = include_str!("../examples/rolling_hash.rs")]
 //! ```
 #![warn(missing_docs, missing_debug_implementations)]

@@ -12,6 +12,7 @@ This crate avoids division by using:
 
 - Montgomery multiplication
 - Plantard multiplication
+- Barrett multiplication
 
 These techniques significantly improve performance, especially when the modulus is determined at *runtime*.
 
@@ -20,6 +21,12 @@ These techniques significantly improve performance, especially when the modulus 
 - 🚀 Fast modular multiplication without division
 - ⚡ Optimized 32-bit and 64-bit implementations
 - 💡 Supports any runtime-specified odd modulus
+
+| Type           | Modulus                   | Notes                 |
+| -------------- | ------------------------- | --------------------- |
+| `Modulus32`    | odd,  $\lesssim 2^{31.3}$ | fastest               |
+| `Modulus32Any` | in $[2, 2^{32})$          | supports even moduli  |
+| `Modulus64`    | odd, fits in `u64`        | supports large moduli |
 
 ## Example
 
@@ -45,6 +52,7 @@ Fast modular multiplication algorithm
 
 - [Montgomery multiplication](https://doi.org/10.1090/s0025-5718-1985-0777282-x)
 - [Plantard multiplication](https://thomas-plantard.github.io/pdf/Plantard21.pdf)
+- [Barrett multiplication](https://doi.org/10.1007/3-540-47721-7_24)
 
 Fast remainder algorithm
 
