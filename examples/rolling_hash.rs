@@ -1,47 +1,76 @@
-use lib_modulo::Modulus64;
+use lib_modulo::{primality_test, Modulus64, Raw64};
 use rand::random_range;
 
-fn main() {
-    let src = b"Rust is fast, safe and memory-efficient.";
+struct RollingHash {
+    modulus: Modulus64,
+    // avoid self-reference
+    base: Raw64,
 
-    // 9th Mersenne number
-    let modulus = Modulus64::new((1 << 61) - 1);
-    let base = modulus.residue(random_range(2..(1 << 61) - 1));
+    history: Vec<Raw64>,
+}
 
-    // hash[i] = hash(src[..i])
-    let hash = {
-        let mut hash = Vec::with_capacity(src.len() + 1);
-        hash.push(modulus.residue(0));
+impl RollingHash {
+    pub fn new(source: &[u8], modulus: u64, base: u64) -> Self {
+        let modulus = Modulus64::new(modulus);
+        let base = modulus.residue(base);
 
-        for (i, s) in src.into_iter().enumerate() {
-            hash.push(hash[i] * base + modulus.residue(*s as u64));
+        let mut history = Vec::with_capacity(source.len() + 1);
+        history.push(modulus.residue(0).into_raw());
+
+        for &c in source.iter() {
+            let last = history.last().copied().unwrap();
+            let next = last.into_residue(&modulus) * base + modulus.residue(c as u64);
+            history.push(next.into_raw());
         }
 
-        hash
-    };
+        Self {
+            base: base.into_raw(),
+            history,
+            modulus,
+        }
+    }
 
-    let contains = |key: &[u8]| {
-        let hashed_key = key.iter().fold(modulus.residue(0), |hash, s| {
-            hash * base + modulus.residue(*s as u64)
+    pub fn contains(&self, target: &[u8]) -> bool {
+        let len = target.len();
+
+        let base = self.base.into_residue(&self.modulus);
+        let pow = base.pow(len as u64);
+
+        let target = target.iter().fold(self.modulus.residue(0), |hash, c| {
+            hash * base + self.modulus.residue(*c as u64)
         });
 
-        let coef = base.pow(key.len() as u64);
-        for i in key.len()..hash.len() {
-            if hashed_key == hash[i] - hash[i - key.len()] * coef {
-                return true;
-            }
+        (len..self.history.len()).any(|r| {
+            self.history[r].into_residue(&self.modulus)
+                - self.history[r - len].into_residue(&self.modulus) * pow
+                == target
+        })
+    }
+}
+
+fn main() {
+    let prime = {
+        let mut x = random_range(1 << 63..u64::MAX - (1 << 10)) | 1;
+        while !primality_test(x) {
+            x += 2
         }
-        false
+        x
     };
 
+    let rolling_hash = RollingHash::new(
+        b"Rust is fast, safe and memory-efficient.",
+        prime,
+        random_range(2..prime),
+    );
+
     // `src` contains these
-    assert!(contains(b"Rust"));
-    assert!(contains(b"fast"));
-    assert!(contains(b"safe"));
-    assert!(contains(b"memory-efficient"));
+    assert!(rolling_hash.contains(b"Rust"));
+    assert!(rolling_hash.contains(b"fast"));
+    assert!(rolling_hash.contains(b"safe"));
+    assert!(rolling_hash.contains(b"memory-efficient"));
 
     // `src` does not contain these
-    assert!(!contains(b"slow"));
-    assert!(!contains(b"inconvenient"));
-    assert!(!contains(b"compilation is slow"));
+    assert!(!rolling_hash.contains(b"slow"));
+    assert!(!rolling_hash.contains(b"inconvenient"));
+    assert!(!rolling_hash.contains(b"compilation is slow"));
 }

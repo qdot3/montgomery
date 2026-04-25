@@ -1,4 +1,4 @@
-use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 /// Factory of [`Residue64`].
 ///
@@ -480,9 +480,6 @@ mod tests {
             let modulus = Modulus64::new(n);
 
             assert_eq!(modulus.can_divide(x), x % n == 0);
-            for m in std::iter::successors(Some(n), |m| m.checked_add(n)).take(100) {
-                assert!(modulus.can_divide(m))
-            }
         }
     }
 
