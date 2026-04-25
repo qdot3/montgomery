@@ -289,7 +289,7 @@ dependencies = [
 
 [[package]]
 name = "lib-modulo"
-version = "0.7.0-alpha-6"
+version = "0.7.0-alpha-7"
 dependencies = [
  "criterion",
  "proptest",

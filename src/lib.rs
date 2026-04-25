@@ -6,7 +6,7 @@
 
 High-performance word-size modular arithmetic using Barrett, Montgomery or Plantard multiplication.
 
-## Overview
+# Overview
 
 Naive modular multiplication typically requires widening the operands, followed by an expensive division.
 This crate avoids division by using:
@@ -18,7 +18,7 @@ This crate avoids division by using:
 
 These techniques significantly improve performance, especially when the modulus is determined at *runtime*.
 
-## Selection guide
+# Selection guide
 
 | Type             | Modulus             | Notes                 |
 |------------------|---------------------|-----------------------|
@@ -26,9 +26,9 @@ These techniques significantly improve performance, especially when the modulus 
 | [`Modulus32Any`] | in `[2, 2^32)`      | supports even moduli  |
 | [`Modulus64`]    | odd, fits in `u64`  | supports large moduli |
 
-## Advanced usage
+# Advanced usage
 
-`Residue` types hold a reference to their corresponding `Modulus` for convenience.
+`Residue{N}` types hold a reference to their corresponding `Modulus{N}` for convenience.
 However, when storing many residues sharing the same modulus, this can be memory-intensive.
 
 In such cases, [`Raw32`] or [`Raw64`] can be used instead.

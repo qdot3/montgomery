@@ -168,7 +168,7 @@ impl PartialEq for Modulus32 {
 /// // set modulus
 /// let modulus = Modulus32::new(3);
 ///
-/// // performs modular arithmetics
+/// // performs modular arithmetic
 /// let one = modulus.residue(1);
 /// let two = modulus.residue(2);
 /// let five = modulus.residue(5);

@@ -15,8 +15,10 @@ impl RollingHash {
         let base = modulus.residue(base);
 
         let mut history = Vec::with_capacity(source.len() + 1);
+        // offset
         history.push(modulus.residue(0).into_raw());
 
+        // hash prefixes
         for &c in source.iter() {
             let last = history.last().copied().unwrap();
             let next = last.into_residue(&modulus) * base + modulus.residue(c as u64);
@@ -36,19 +38,22 @@ impl RollingHash {
         let base = self.base.into_residue(&self.modulus);
         let pow = base.pow(len as u64);
 
+        // hash input
         let target = target.iter().fold(self.modulus.residue(0), |hash, c| {
             hash * base + self.modulus.residue(*c as u64)
         });
 
         (len..self.history.len()).any(|r| {
-            self.history[r].into_residue(&self.modulus)
-                - self.history[r - len].into_residue(&self.modulus) * pow
-                == target
+            // restore hash of windows
+            let sub = self.history[r].into_residue(&self.modulus)
+                - self.history[r - len].into_residue(&self.modulus) * pow;
+            sub == target
         })
     }
 }
 
 fn main() {
+    // generate prime at runtime for safety
     let prime = {
         let mut x = random_range(1 << 63..u64::MAX - (1 << 10)) | 1;
         while !primality_test(x) {

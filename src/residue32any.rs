@@ -59,6 +59,12 @@ impl Modulus32Any {
         Self { n, magic }
     }
 
+    /// Returns the modulus.
+    #[inline(always)]
+    pub const fn modulus(&self) -> u32 {
+        self.n as u32
+    }
+
     /// Calculates residue of `x` modulo `self`.
     #[inline(always)]
     pub const fn residue32(&self, x: u32) -> u32 {
