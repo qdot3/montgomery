@@ -19,6 +19,7 @@ impl Modulus64 {
     ///
     /// - modulus `n` should be an odd number.
     #[inline]
+    #[must_use]
     pub const fn new(n: u64) -> Self {
         assert!(n & 1 == 1, "modulus should be an odd number");
 
@@ -64,7 +65,7 @@ impl Modulus64 {
     /// let modulus = Modulus64::new(5);
     /// assert_eq!(modulus.residue(8).get(), 3)
     /// ```
-    #[inline(always)]
+    #[must_use]
     pub const fn residue(&self, x: u64) -> Residue64<'_> {
         // `x r2 < r n`
         let x = self.mul(x, self.r2_mod_n);
@@ -75,7 +76,6 @@ impl Modulus64 {
     /// Performs Montgomery multiplication.
     ///
     /// if `lhs rhs < n r`, then `result < n`
-    #[inline(always)]
     const fn mul(&self, lhs: u64, rhs: u64) -> u64 {
         self.mul_add(lhs, rhs, 0)
     }
@@ -83,7 +83,6 @@ impl Modulus64 {
     /// Performs `lhs rhs + add`.
     ///
     /// If `lhs rhs + add < n r`, then the result is less than `n`.
-    #[inline(always)]
     const fn mul_add(&self, lhs: u64, rhs: u64, add: u64) -> u64 {
         // FIXME: use `a.widening_mul(b)`
         let (x_hi, x_lo) = {
@@ -118,6 +117,7 @@ impl Modulus64 {
     /// }
     /// ```
     #[inline]
+    #[must_use]
     pub const fn can_divide(&self, x: u64) -> bool {
         self.residue(x).is_zero()
     }
@@ -162,7 +162,7 @@ pub struct Residue64<'a> {
     x: u64,
 }
 
-impl<'a> Residue64<'a> {
+impl Residue64<'_> {
     /// Extract the internal representation of `self`.
     ///
     /// ```
@@ -176,8 +176,8 @@ impl<'a> Residue64<'a> {
     /// // The caller must ensure that both operands shares the same modulus.
     /// let double_sum = residues.into_iter().fold(modulus.residue(0), |sum, r| r + sum + r);
     /// assert_eq!(double_sum, modulus.residue((1 + 1000) * 1000));
-    /// ```
-    #[inline(always)]
+    /// ```#[must_use]
+    #[must_use]
     pub const fn into_raw(self) -> Raw64 {
         Raw64 { x: self.x }
     }
@@ -193,7 +193,7 @@ impl<'a> Residue64<'a> {
     /// let n = modulus.residue(7);
     /// assert_eq!(n.get(), 2);
     /// ```
-    #[inline(always)]
+    #[must_use]
     pub const fn get(&self) -> u64 {
         self.modulus.mul(self.x, 1)
     }
@@ -209,7 +209,7 @@ impl<'a> Residue64<'a> {
     /// let n = modulus.residue(7);
     /// assert_eq!(n.modulus(), 5);
     /// ```
-    #[inline(always)]
+    #[must_use]
     pub const fn modulus(&self) -> u64 {
         self.modulus.n
     }
@@ -224,7 +224,7 @@ impl<'a> Residue64<'a> {
     /// let modulus  = Modulus64::new(3);
     /// assert_eq!(modulus.residue(6).get(), 0);
     /// ```
-    #[inline(always)]
+    #[must_use]
     pub const fn is_zero(self) -> bool {
         self.x == 0
     }
@@ -247,6 +247,7 @@ impl<'a> Residue64<'a> {
     /// }
     /// ```
     #[inline]
+    #[must_use]
     pub const fn pow(mut self, mut exp: u64) -> Self {
         // r inv_r = 1 (mod n)
         let mut result = self.modulus.residue(1).x;
@@ -254,12 +255,12 @@ impl<'a> Residue64<'a> {
         while exp > 0 {
             if exp & 1 == 1 {
                 // n < r
-                result = self.modulus.mul(result, self.x)
+                result = self.modulus.mul(result, self.x);
             }
 
             exp >>= 1;
             // n < r
-            self.x = self.modulus.mul(self.x, self.x)
+            self.x = self.modulus.mul(self.x, self.x);
         }
         self.x = result;
 
@@ -332,58 +333,51 @@ impl<'a> Residue64<'a> {
     }
 }
 
-impl<'a> Add for Residue64<'a> {
+impl Add for Residue64<'_> {
     type Output = Self;
 
-    #[inline(always)]
     fn add(self, rhs: Self) -> Self {
         self + rhs.into_raw()
     }
 }
 
-impl<'a> AddAssign for Residue64<'a> {
-    #[inline(always)]
+impl AddAssign for Residue64<'_> {
     fn add_assign(&mut self, rhs: Self) {
-        *self = *self + rhs
+        *self = *self + rhs;
     }
 }
 
-impl<'a> Sub for Residue64<'a> {
+impl Sub for Residue64<'_> {
     type Output = Self;
 
-    #[inline(always)]
     fn sub(self, rhs: Self) -> Self {
         self - rhs.into_raw()
     }
 }
 
-impl<'a> SubAssign for Residue64<'a> {
-    #[inline(always)]
+impl SubAssign for Residue64<'_> {
     fn sub_assign(&mut self, rhs: Self) {
-        *self = *self - rhs
+        *self = *self - rhs;
     }
 }
 
-impl<'a> Mul for Residue64<'a> {
+impl Mul for Residue64<'_> {
     type Output = Self;
 
-    #[inline(always)]
     fn mul(self, rhs: Self) -> Self {
         self * rhs.into_raw()
     }
 }
 
-impl<'a> MulAssign for Residue64<'a> {
-    #[inline(always)]
+impl MulAssign for Residue64<'_> {
     fn mul_assign(&mut self, rhs: Self) {
-        *self = *self * rhs
+        *self = *self * rhs;
     }
 }
 
-impl<'a> Neg for Residue64<'a> {
+impl Neg for Residue64<'_> {
     type Output = Self;
 
-    #[inline(always)]
     fn neg(mut self) -> Self::Output {
         // (x - x) r = 0 (mod n)
         self.x = if self.x == 0 {
@@ -419,14 +413,13 @@ impl Raw64 {
     ///
     /// This does not perform validation or reduction.
     /// The caller must ensure the modulus is correct for this value.
-    #[inline(always)]
-    pub const fn into_residue<'a>(self, modulus: &'a Modulus64) -> Residue64<'a> {
+    #[must_use]
+    pub const fn into_residue(self, modulus: &Modulus64) -> Residue64<'_> {
         Residue64 { modulus, x: self.x }
     }
 }
 
 impl<'a> From<Residue64<'a>> for Raw64 {
-    #[inline(always)]
     fn from(residue: Residue64<'a>) -> Self {
         Self { x: residue.x }
     }
@@ -465,14 +458,14 @@ impl<'a> Add<Residue64<'a>> for Raw64 {
     }
 }
 
-impl<'a> AddAssign<Raw64> for Residue64<'a> {
+impl AddAssign<Raw64> for Residue64<'_> {
     /// Performs the `+=` operation.
     ///
     /// # Caution
     ///
     /// The caller must ensure that both operands shares the same modulus.
     fn add_assign(&mut self, rhs: Raw64) {
-        *self = *self + rhs
+        *self = *self + rhs;
     }
 }
 
@@ -516,14 +509,14 @@ impl<'a> Sub<Residue64<'a>> for Raw64 {
     }
 }
 
-impl<'a> SubAssign<Raw64> for Residue64<'a> {
+impl SubAssign<Raw64> for Residue64<'_> {
     /// Performs the `-=` operation.
     ///
     /// # Caution
     ///
     /// The caller must ensure that both operands shares the same modulus.
     fn sub_assign(&mut self, rhs: Raw64) {
-        *self = *self - rhs
+        *self = *self - rhs;
     }
 }
 
@@ -556,14 +549,14 @@ impl<'a> Mul<Residue64<'a>> for Raw64 {
     }
 }
 
-impl<'a> MulAssign<Raw64> for Residue64<'a> {
+impl MulAssign<Raw64> for Residue64<'_> {
     /// Performs the `*=` operation.
     ///
     /// # Caution
     ///
     /// The caller must ensure that both operands shares the same modulus.
     fn mul_assign(&mut self, rhs: Raw64) {
-        *self = *self * rhs
+        *self = *self * rhs;
     }
 }
 

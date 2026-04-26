@@ -49,7 +49,7 @@ impl Modulus32Any {
     /// // meaningless division by 1 is NOT available for performance
     /// assert!(std::panic::catch_unwind(|| Modulus32Any::new(1)).is_err());
     /// ```
-    #[inline(always)]
+    #[must_use]
     pub const fn new(n: u32) -> Self {
         assert!(n > 1, "invalid modulus: modulus should be greater than 1.");
 
@@ -60,20 +60,20 @@ impl Modulus32Any {
     }
 
     /// Returns the modulus.
-    #[inline(always)]
+    #[must_use]
     pub const fn modulus(&self) -> u32 {
         self.n as u32
     }
 
     /// Calculates residue of `x` modulo `self`.
-    #[inline(always)]
+    #[must_use]
     pub const fn residue32(&self, x: u32) -> u32 {
         let lo = self.magic.wrapping_mul(x as u64);
         ((lo as u128 * self.n as u128) >> 64) as u32
     }
 
     /// Calculates residue of `x` modulo `self`.
-    #[inline(always)]
+    #[must_use]
     pub const fn residue64(&self, x: u64) -> u64 {
         let quot = ((x as u128 * self.magic as u128) >> 64) as u64;
         let (rem, b) = x.overflowing_sub(quot * self.n);
@@ -85,7 +85,7 @@ impl Modulus32Any {
     }
 
     /// Checks if `x` is divisible by `self`.
-    #[inline(always)]
+    #[must_use]
     pub const fn can_divide(&self, x: u32) -> bool {
         // since `self.n` is not 1, `self.magic` never overflow
         self.magic.wrapping_mul(x as u64) < self.magic
@@ -102,7 +102,7 @@ impl Modulus32Any {
     /// let modulus = Modulus32Any::new(1 << 8);
     /// assert_eq!(modulus.mul(u32::MAX, u32::MAX), 1);
     /// ```
-    #[inline(always)]
+    #[must_use]
     pub const fn mul(&self, a: u32, b: u32) -> u32 {
         self.residue64(a as u64 * b as u64) as u32
     }
@@ -120,7 +120,7 @@ impl Modulus32Any {
     ///     (123 * 456 + 789) % 2357
     /// );
     /// ```
-    #[inline(always)]
+    #[must_use]
     pub const fn carrying_mul(&self, a: u32, b: u32, c: u32) -> u32 {
         self.residue64(a as u64 * b as u64 + c as u64) as u32
     }
@@ -139,7 +139,7 @@ impl Modulus32Any {
     ///     (u64::MAX % 123_456) as u32
     /// );
     /// ```
-    #[inline(always)]
+    #[must_use]
     pub const fn carrying_mul_add(&self, a: u32, b: u32, c: u32, d: u32) -> u32 {
         self.residue64(a as u64 * b as u64 + c as u64 + d as u64) as u32
     }
@@ -159,7 +159,7 @@ impl Modulus32Any {
     ///
     /// assert_eq!(modulus.pow(123_456 * 100 + 1, 1000), 1)
     /// ```
-    #[inline(always)]
+    #[must_use]
     pub const fn pow(&self, mut x: u32, mut exp: u32) -> u32 {
         let mut res = 1;
         while exp > 0 {

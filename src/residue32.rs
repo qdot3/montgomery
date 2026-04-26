@@ -40,6 +40,7 @@ impl Modulus32 {
     /// assert!(std::panic::catch_unwind(|| { Modulus32::new(2); }).is_err())
     /// ```
     #[inline]
+    #[must_use]
     pub const fn new(n: u32) -> Self {
         assert!(
             n & 1 == 1,
@@ -106,7 +107,7 @@ impl Modulus32 {
     /// let modulus = Modulus32::new(5);
     /// assert_eq!(modulus.residue(8).get(), 3)
     /// ```
-    #[inline(always)]
+    #[must_use]
     pub const fn residue(&self, x: u32) -> Residue32<'_> {
         // fast remainder algorithm
         // See <https://onlinelibrary.wiley.com/doi/10.1002/spe.2689> for details
@@ -135,7 +136,7 @@ impl Modulus32 {
     /// assert!(modulus.can_divide(18));
     /// assert!(!modulus.can_divide(19));
     /// ```
-    #[inline(always)]
+    #[must_use]
     pub const fn can_divide(&self, x: u32) -> bool {
         self.recip.wrapping_mul(x as u64) <= self.recip.wrapping_sub(1)
     }
@@ -184,7 +185,7 @@ pub struct Residue32<'a> {
     x: u64,
 }
 
-impl<'a> Residue32<'a> {
+impl Residue32<'_> {
     /// Extract the internal representation of `self`.
     ///
     /// ```
@@ -199,7 +200,7 @@ impl<'a> Residue32<'a> {
     /// let double_sum = residues.into_iter().fold(modulus.residue(0), |sum, r| r + sum + r);
     /// assert_eq!(double_sum, modulus.residue((1 + 1000) * 1000));
     /// ```
-    #[inline(always)]
+    #[must_use]
     pub const fn into_raw(self) -> Raw32 {
         Raw32 { x: self.x }
     }
@@ -214,7 +215,7 @@ impl<'a> Residue32<'a> {
     /// let modulus = Modulus32::new(5);
     /// assert!(modulus.residue(10).is_zero())
     /// ```
-    #[inline(always)]
+    #[must_use]
     pub const fn is_zero(self) -> bool {
         self.x == 0
     }
@@ -229,7 +230,7 @@ impl<'a> Residue32<'a> {
     /// let modulus = Modulus32::new(7);
     /// assert_eq!(modulus.residue(10).get(), 3)
     /// ```
-    #[inline(always)]
+    #[must_use]
     pub const fn get(self) -> u64 {
         self.modulus.mul(self.x, 1)
     }
@@ -244,7 +245,7 @@ impl<'a> Residue32<'a> {
     /// let modulus = Modulus32::new(11);
     /// assert_eq!(modulus.residue(2).modulus(), 11);
     /// ```
-    #[inline(always)]
+    #[must_use]
     pub const fn modulus(&self) -> u64 {
         self.modulus.n
     }
@@ -266,7 +267,7 @@ impl<'a> Residue32<'a> {
     ///     assert_eq!(residue.pow(exp).get(), (1 << exp) % 1001)
     /// }
     /// ```
-    #[inline(always)]
+    #[must_use]
     pub const fn pow(self, mut exp: u32) -> Self {
         let Self { mut x, modulus } = self;
         // If `n = 1`, then `init = 0`. Otherwise, `n > 1`.
@@ -275,7 +276,7 @@ impl<'a> Residue32<'a> {
         while exp > 1 {
             if exp & 1 == 1 {
                 // インライン展開されると,掛け算を１回節約できる。
-                prod = modulus.mul(prod, x)
+                prod = modulus.mul(prod, x);
             }
 
             exp >>= 1;
@@ -344,7 +345,7 @@ impl<'a> Residue32<'a> {
     }
 }
 
-impl<'a> Add for Residue32<'a> {
+impl Add for Residue32<'_> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -352,13 +353,13 @@ impl<'a> Add for Residue32<'a> {
     }
 }
 
-impl<'a> AddAssign for Residue32<'a> {
+impl AddAssign for Residue32<'_> {
     fn add_assign(&mut self, rhs: Self) {
-        *self = *self + rhs
+        *self = *self + rhs;
     }
 }
 
-impl<'a> Sub for Residue32<'a> {
+impl Sub for Residue32<'_> {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
@@ -366,13 +367,13 @@ impl<'a> Sub for Residue32<'a> {
     }
 }
 
-impl<'a> SubAssign for Residue32<'a> {
+impl SubAssign for Residue32<'_> {
     fn sub_assign(&mut self, rhs: Self) {
-        *self = *self - rhs
+        *self = *self - rhs;
     }
 }
 
-impl<'a> Mul for Residue32<'a> {
+impl Mul for Residue32<'_> {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
@@ -380,13 +381,13 @@ impl<'a> Mul for Residue32<'a> {
     }
 }
 
-impl<'a> MulAssign for Residue32<'a> {
+impl MulAssign for Residue32<'_> {
     fn mul_assign(&mut self, rhs: Self) {
-        *self = *self * rhs
+        *self = *self * rhs;
     }
 }
 
-impl<'a> Neg for Residue32<'a> {
+impl Neg for Residue32<'_> {
     type Output = Self;
 
     fn neg(mut self) -> Self::Output {
@@ -423,14 +424,13 @@ impl Raw32 {
     ///
     /// This does not perform validation or reduction.
     /// The caller must ensure the modulus is correct for this value.
-    #[inline(always)]
-    pub const fn into_residue<'a>(self, modulus: &'a Modulus32) -> Residue32<'a> {
+    #[must_use]
+    pub const fn into_residue(self, modulus: &Modulus32) -> Residue32<'_> {
         Residue32 { modulus, x: self.x }
     }
 }
 
 impl<'a> From<Residue32<'a>> for Raw32 {
-    #[inline(always)]
     fn from(residue: Residue32<'a>) -> Self {
         Self { x: residue.x }
     }
@@ -469,14 +469,14 @@ impl<'a> Add<Residue32<'a>> for Raw32 {
     }
 }
 
-impl<'a> AddAssign<Raw32> for Residue32<'a> {
+impl AddAssign<Raw32> for Residue32<'_> {
     /// Performs the `+=` operation.
     ///
     /// # Caution
     ///
     /// The caller must ensure that both operands shares the same modulus.
     fn add_assign(&mut self, rhs: Raw32) {
-        *self = *self + rhs
+        *self = *self + rhs;
     }
 }
 
@@ -520,14 +520,14 @@ impl<'a> Sub<Residue32<'a>> for Raw32 {
     }
 }
 
-impl<'a> SubAssign<Raw32> for Residue32<'a> {
+impl SubAssign<Raw32> for Residue32<'_> {
     /// Performs the `-=` operation.
     ///
     /// # Caution
     ///
     /// The caller must ensure that both operands shares the same modulus.
     fn sub_assign(&mut self, rhs: Raw32) {
-        *self = *self - rhs
+        *self = *self - rhs;
     }
 }
 
@@ -560,14 +560,14 @@ impl<'a> Mul<Residue32<'a>> for Raw32 {
     }
 }
 
-impl<'a> MulAssign<Raw32> for Residue32<'a> {
+impl MulAssign<Raw32> for Residue32<'_> {
     /// Performs the `*=` operation.
     ///
     /// # Caution
     ///
     /// The caller must ensure that both operands shares the same modulus.
     fn mul_assign(&mut self, rhs: Raw32) {
-        *self = *self * rhs
+        *self = *self * rhs;
     }
 }
 

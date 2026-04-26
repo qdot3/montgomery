@@ -5,6 +5,9 @@ use crate::{Modulus32, Modulus64};
 /// # Time complexity
 ///
 /// *O*(log *x*)
+#[must_use]
+#[allow(clippy::unreadable_literal)]
+#[allow(clippy::cast_possible_truncation)]
 pub fn primality_test(x: u64) -> bool {
     if x < 64 {
         return (PRIME_LT_64 >> x) & 1 == 1;
@@ -58,18 +61,22 @@ pub fn primality_test(x: u64) -> bool {
 
     // witnesses from <https://miller-rabin.appspot.com/>
     if x <= Modulus32::MAX as u64 {
-        primality_test_impl!(Modulus32::new(x as u32), [2, 7, 61], d as u32, s as u32);
+        primality_test_impl!(Modulus32::new(x as u32), [2, 7, 61], d as u32, s);
     } else {
         let witness = if x < 350_269_456_337 {
-            static SET3: [u64; 3] = [0x3AB4F88FF0CC7C80, 0xCBEE4CDF120C10AA, 0xE6F1343B0EDCA8E7];
+            static SET3: [u64; 3] = [
+                4230279247111683200,
+                14694767155120705706,
+                16641139526367750375,
+            ];
             SET3.as_slice()
         } else if x < 7_999_252_175_582_851 {
             static SET5: [u64; 5] = [
                 2,
-                0x3C1C7396F6D,
-                0x2142E2E3F22DE5C,
-                0x297105B6B7B29DD,
-                0x370EB221A5F176DD,
+                4130806001517,
+                149795463772692060,
+                186635894390467037,
+                3967304179347715805,
             ];
             SET5.as_slice()
         } else {
