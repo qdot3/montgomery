@@ -2,7 +2,9 @@
 # Fast Modular Arithmetic
 
 [![crate](https://img.shields.io/crates/v/lib_modulo.svg)](https://crates.io/crates/lib_modulo)
-[![documentation](https://docs.rs/lib_modulo/badge.svg)](https://docs.rs/lib_modulo)
+[![docs](https://docs.rs/lib_modulo/badge.svg)](https://docs.rs/lib_modulo)
+![no_std](https://img.shields.io/badge/no__std-compatible-blue)
+![unsafe](https://img.shields.io/badge/unsafe-forbidden-success)
 
 High-performance word-size modular arithmetic using Barrett, Montgomery or Plantard multiplication.
 
@@ -14,7 +16,6 @@ This crate avoids division by using:
 - [Barrett multiplication](https://doi.org/10.1007/3-540-47721-7_24)
 - [Montgomery multiplication](https://doi.org/10.1090/s0025-5718-1985-0777282-x)
 - [Plantard multiplication](https://thomas-plantard.github.io/pdf/Plantard21.pdf)
-
 
 These techniques significantly improve performance, especially when the modulus is determined at *runtime*.
 
@@ -47,6 +48,7 @@ This allows the use of large prime moduli without overflow.
 #![warn(clippy::all, clippy::pedantic, clippy::cargo)]
 #![forbid(unsafe_code)]
 #![no_std]
+
 mod residue32;
 pub use residue32::*;
 

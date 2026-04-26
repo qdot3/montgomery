@@ -51,7 +51,7 @@ impl Modulus32Any {
     /// ```
     #[inline(always)]
     pub const fn new(n: u32) -> Self {
-        assert!(n > 1);
+        assert!(n > 1, "invalid modulus: modulus should be greater than 1.");
 
         let n = n as u64;
         let magic = (u64::MAX / n).wrapping_add(1);
