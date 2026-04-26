@@ -21,7 +21,8 @@ impl RollingHash {
         // hash prefixes
         for &c in source.iter() {
             let last = history.last().copied().unwrap();
-            let next = last.into_residue(&modulus) * base + modulus.residue(c as u64);
+            // `last` and `base` share the same modulus
+            let next = last * base + modulus.residue(c as u64);
             history.push(next.into_raw());
         }
 
@@ -45,8 +46,8 @@ impl RollingHash {
 
         (len..self.history.len()).any(|r| {
             // restore hash of windows
-            let sub = self.history[r].into_residue(&self.modulus)
-                - self.history[r - len].into_residue(&self.modulus) * pow;
+            // all of them share the same modulus
+            let sub = self.history[r] - self.history[r - len] * pow;
             sub == target
         })
     }

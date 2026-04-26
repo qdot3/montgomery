@@ -171,6 +171,11 @@ impl<'a> Residue64<'a> {
     /// let modulus = Modulus64::new(1001);
     /// // save memory
     /// let residues: Vec<Raw64> = (1..=1000).map(|x| modulus.residue(x).into_raw()).collect();
+    ///
+    /// // `Residue64` and `raw64` can interact.
+    /// // The caller must ensure that both operands shares the same modulus.
+    /// let double_sum = residues.into_iter().fold(modulus.residue(0), |sum, r| r + sum + r);
+    /// assert_eq!(double_sum, modulus.residue((1 + 1000) * 1000));
     /// ```
     #[inline(always)]
     pub const fn into_raw(self) -> Raw64 {
@@ -331,15 +336,8 @@ impl<'a> Add for Residue64<'a> {
     type Output = Self;
 
     #[inline(always)]
-    fn add(mut self, rhs: Self) -> Self {
-        let (sum, b) = self.x.overflowing_add(rhs.x);
-        self.x = if b || sum >= self.modulus.n {
-            sum.wrapping_sub(self.modulus.n)
-        } else {
-            sum
-        };
-
-        self
+    fn add(self, rhs: Self) -> Self {
+        self + rhs.into_raw()
     }
 }
 
@@ -354,15 +352,8 @@ impl<'a> Sub for Residue64<'a> {
     type Output = Self;
 
     #[inline(always)]
-    fn sub(mut self, rhs: Self) -> Self {
-        let (diff, b) = self.x.overflowing_sub(rhs.x);
-        self.x = if b {
-            diff.wrapping_add(self.modulus.n)
-        } else {
-            diff
-        };
-
-        self
+    fn sub(self, rhs: Self) -> Self {
+        self - rhs.into_raw()
     }
 }
 
@@ -377,11 +368,8 @@ impl<'a> Mul for Residue64<'a> {
     type Output = Self;
 
     #[inline(always)]
-    fn mul(mut self, rhs: Self) -> Self {
-        // n < r
-        self.x = self.modulus.mul(self.x, rhs.x);
-
-        self
+    fn mul(self, rhs: Self) -> Self {
+        self * rhs.into_raw()
     }
 }
 
@@ -424,6 +412,9 @@ pub struct Raw64 {
 impl Raw64 {
     /// Attaches a modulus and returns a [`Residue64`].
     ///
+    /// Typically, this only needs to be called once per computation
+    /// because `Raw64` and `Residue64` can interact.
+    ///
     /// # Caution
     ///
     /// This does not perform validation or reduction.
@@ -438,6 +429,141 @@ impl<'a> From<Residue64<'a>> for Raw64 {
     #[inline(always)]
     fn from(residue: Residue64<'a>) -> Self {
         Self { x: residue.x }
+    }
+}
+
+impl<'a> Add<Raw64> for Residue64<'a> {
+    type Output = Residue64<'a>;
+
+    /// Performs the `+` operation.
+    ///
+    /// # Caution
+    ///
+    /// The caller must ensure that both operands shares the same modulus.
+    fn add(mut self, rhs: Raw64) -> Self::Output {
+        let (sum, b) = self.x.overflowing_add(rhs.x);
+        self.x = if b || sum >= self.modulus.n {
+            sum.wrapping_sub(self.modulus.n)
+        } else {
+            sum
+        };
+
+        self
+    }
+}
+
+impl<'a> Add<Residue64<'a>> for Raw64 {
+    type Output = Residue64<'a>;
+
+    /// Performs the `+` operation.
+    ///
+    /// # Caution
+    ///
+    /// The caller must ensure that both operands shares the same modulus.
+    fn add(self, rhs: Residue64<'a>) -> Self::Output {
+        rhs + self
+    }
+}
+
+impl<'a> AddAssign<Raw64> for Residue64<'a> {
+    /// Performs the `+=` operation.
+    ///
+    /// # Caution
+    ///
+    /// The caller must ensure that both operands shares the same modulus.
+    fn add_assign(&mut self, rhs: Raw64) {
+        *self = *self + rhs
+    }
+}
+
+impl<'a> Sub<Raw64> for Residue64<'a> {
+    type Output = Residue64<'a>;
+
+    /// Performs the `-` operation.
+    ///
+    /// # Caution
+    ///
+    /// The caller must ensure that both operands shares the same modulus.
+    fn sub(mut self, rhs: Raw64) -> Self::Output {
+        let (diff, b) = self.x.overflowing_sub(rhs.x);
+        self.x = if b {
+            diff.wrapping_add(self.modulus.n)
+        } else {
+            diff
+        };
+
+        self
+    }
+}
+
+impl<'a> Sub<Residue64<'a>> for Raw64 {
+    type Output = Residue64<'a>;
+
+    /// Performs the `-` operation.
+    ///
+    /// # Caution
+    ///
+    /// The caller must ensure that both operands shares the same modulus.
+    fn sub(self, mut rhs: Residue64<'a>) -> Self::Output {
+        let (diff, b) = self.x.overflowing_sub(rhs.x);
+        rhs.x = if b {
+            diff.wrapping_add(rhs.modulus.n)
+        } else {
+            diff
+        };
+
+        rhs
+    }
+}
+
+impl<'a> SubAssign<Raw64> for Residue64<'a> {
+    /// Performs the `-=` operation.
+    ///
+    /// # Caution
+    ///
+    /// The caller must ensure that both operands shares the same modulus.
+    fn sub_assign(&mut self, rhs: Raw64) {
+        *self = *self - rhs
+    }
+}
+
+impl<'a> Mul<Raw64> for Residue64<'a> {
+    type Output = Residue64<'a>;
+
+    /// Performs the `*` operation.
+    ///
+    /// # Caution
+    ///
+    /// The caller must ensure that both operands shares the same modulus.
+    fn mul(mut self, rhs: Raw64) -> Self::Output {
+        // n < r
+        self.x = self.modulus.mul(self.x, rhs.x);
+
+        self
+    }
+}
+
+impl<'a> Mul<Residue64<'a>> for Raw64 {
+    type Output = Residue64<'a>;
+
+    /// Performs the `*` operation.
+    ///
+    /// # Caution
+    ///
+    /// The caller must ensure that both operands shares the same modulus.
+    fn mul(self, rhs: Residue64<'a>) -> Self::Output {
+        rhs * self
+    }
+}
+
+impl<'a> MulAssign<Raw64> for Residue64<'a> {
+    /// Performs the `*=` operation.
+    ///
+    /// # Caution
+    ///
+    /// The caller must ensure that both operands shares the same modulus.
+    fn mul_assign(&mut self, rhs: Raw64) {
+        *self = *self * rhs
     }
 }
 

@@ -193,6 +193,11 @@ impl<'a> Residue32<'a> {
     /// let modulus = Modulus32::new(1001);
     /// // save memory
     /// let residues: Vec<Raw32> = (1..=1000).map(|x| modulus.residue(x).into_raw()).collect();
+    ///
+    /// // `Residue32` and `raw32` can interact.
+    /// // The caller must ensure that both operands shares the same modulus.
+    /// let double_sum = residues.into_iter().fold(modulus.residue(0), |sum, r| r + sum + r);
+    /// assert_eq!(double_sum, modulus.residue((1 + 1000) * 1000));
     /// ```
     #[inline(always)]
     pub const fn into_raw(self) -> Raw32 {
@@ -342,15 +347,8 @@ impl<'a> Residue32<'a> {
 impl<'a> Add for Residue32<'a> {
     type Output = Self;
 
-    fn add(mut self, rhs: Self) -> Self::Output {
-        let (x, b) = self.x.overflowing_add(rhs.x);
-        self.x = if b || x >= self.modulus() {
-            x.wrapping_sub(self.modulus())
-        } else {
-            x
-        };
-
-        self
+    fn add(self, rhs: Self) -> Self::Output {
+        self + rhs.into_raw()
     }
 }
 
@@ -363,11 +361,8 @@ impl<'a> AddAssign for Residue32<'a> {
 impl<'a> Sub for Residue32<'a> {
     type Output = Self;
 
-    fn sub(mut self, rhs: Self) -> Self::Output {
-        let (x, b) = self.x.overflowing_sub(rhs.x);
-        self.x = if b { x.wrapping_add(self.modulus()) } else { x };
-
-        self
+    fn sub(self, rhs: Self) -> Self::Output {
+        self - rhs.into_raw()
     }
 }
 
@@ -380,9 +375,8 @@ impl<'a> SubAssign for Residue32<'a> {
 impl<'a> Mul for Residue32<'a> {
     type Output = Self;
 
-    fn mul(mut self, rhs: Self) -> Self::Output {
-        self.x = self.modulus.mul(self.x, rhs.x);
-        self
+    fn mul(self, rhs: Self) -> Self::Output {
+        self * rhs.into_raw()
     }
 }
 
@@ -422,6 +416,9 @@ pub struct Raw32 {
 impl Raw32 {
     /// Attaches a modulus and returns a [`Residue32`].
     ///
+    /// Typically, this only needs to be called once per computation
+    /// because `Raw32` and `Residue32` can interact.
+    ///
     /// # Caution
     ///
     /// This does not perform validation or reduction.
@@ -438,6 +435,142 @@ impl<'a> From<Residue32<'a>> for Raw32 {
         Self { x: residue.x }
     }
 }
+
+impl<'a> Add<Raw32> for Residue32<'a> {
+    type Output = Residue32<'a>;
+
+    /// Performs the `+` operation.
+    ///
+    /// # Caution
+    ///
+    /// The caller must ensure that both operands shares the same modulus.
+    fn add(mut self, rhs: Raw32) -> Self::Output {
+        let (sum, b) = self.x.overflowing_add(rhs.x);
+        self.x = if b || sum >= self.modulus.n {
+            sum.wrapping_sub(self.modulus.n)
+        } else {
+            sum
+        };
+
+        self
+    }
+}
+
+impl<'a> Add<Residue32<'a>> for Raw32 {
+    type Output = Residue32<'a>;
+
+    /// Performs the `+` operation.
+    ///
+    /// # Caution
+    ///
+    /// The caller must ensure that both operands shares the same modulus.
+    fn add(self, rhs: Residue32<'a>) -> Self::Output {
+        rhs + self
+    }
+}
+
+impl<'a> AddAssign<Raw32> for Residue32<'a> {
+    /// Performs the `+=` operation.
+    ///
+    /// # Caution
+    ///
+    /// The caller must ensure that both operands shares the same modulus.
+    fn add_assign(&mut self, rhs: Raw32) {
+        *self = *self + rhs
+    }
+}
+
+impl<'a> Sub<Raw32> for Residue32<'a> {
+    type Output = Residue32<'a>;
+
+    /// Performs the `-` operation.
+    ///
+    /// # Caution
+    ///
+    /// The caller must ensure that both operands shares the same modulus.
+    fn sub(mut self, rhs: Raw32) -> Self::Output {
+        let (diff, b) = self.x.overflowing_sub(rhs.x);
+        self.x = if b {
+            diff.wrapping_add(self.modulus.n)
+        } else {
+            diff
+        };
+
+        self
+    }
+}
+
+impl<'a> Sub<Residue32<'a>> for Raw32 {
+    type Output = Residue32<'a>;
+
+    /// Performs the `-` operation.
+    ///
+    /// # Caution
+    ///
+    /// The caller must ensure that both operands shares the same modulus.
+    fn sub(self, mut rhs: Residue32<'a>) -> Self::Output {
+        let (diff, b) = self.x.overflowing_sub(rhs.x);
+        rhs.x = if b {
+            diff.wrapping_add(rhs.modulus.n)
+        } else {
+            diff
+        };
+
+        rhs
+    }
+}
+
+impl<'a> SubAssign<Raw32> for Residue32<'a> {
+    /// Performs the `-=` operation.
+    ///
+    /// # Caution
+    ///
+    /// The caller must ensure that both operands shares the same modulus.
+    fn sub_assign(&mut self, rhs: Raw32) {
+        *self = *self - rhs
+    }
+}
+
+impl<'a> Mul<Raw32> for Residue32<'a> {
+    type Output = Residue32<'a>;
+
+    /// Performs the `*` operation.
+    ///
+    /// # Caution
+    ///
+    /// The caller must ensure that both operands shares the same modulus.
+    fn mul(mut self, rhs: Raw32) -> Self::Output {
+        // n < r
+        self.x = self.modulus.mul(self.x, rhs.x);
+
+        self
+    }
+}
+
+impl<'a> Mul<Residue32<'a>> for Raw32 {
+    type Output = Residue32<'a>;
+
+    /// Performs the `*` operation.
+    ///
+    /// # Caution
+    ///
+    /// The caller must ensure that both operands shares the same modulus.
+    fn mul(self, rhs: Residue32<'a>) -> Self::Output {
+        rhs * self
+    }
+}
+
+impl<'a> MulAssign<Raw32> for Residue32<'a> {
+    /// Performs the `*=` operation.
+    ///
+    /// # Caution
+    ///
+    /// The caller must ensure that both operands shares the same modulus.
+    fn mul_assign(&mut self, rhs: Raw32) {
+        *self = *self * rhs
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
