@@ -7,9 +7,9 @@ use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 #[derive(Debug, Clone, Eq, Hash)]
 pub struct Modulus64 {
     // n inv_n = 1 (mod r = 2^32 or 2^64)
-    pub(crate) n: u64,
-    pub(crate) inv_n: u64,
-    pub(crate) r2_mod_n: u64,
+    n: u64,
+    inv_n: u64,
+    r2_mod_n: u64,
 }
 
 impl Modulus64 {
@@ -76,7 +76,7 @@ impl Modulus64 {
     ///
     /// if `lhs rhs < n r`, then `result < n`
     #[inline(always)]
-    pub(crate) const fn mul(&self, lhs: u64, rhs: u64) -> u64 {
+    const fn mul(&self, lhs: u64, rhs: u64) -> u64 {
         self.mul_add(lhs, rhs, 0)
     }
 
@@ -84,7 +84,7 @@ impl Modulus64 {
     ///
     /// If `lhs rhs + add < n r`, then the result is less than `n`.
     #[inline(always)]
-    pub(crate) const fn mul_add(&self, lhs: u64, rhs: u64, add: u64) -> u64 {
+    const fn mul_add(&self, lhs: u64, rhs: u64, add: u64) -> u64 {
         // FIXME: use `a.widening_mul(b)`
         let (x_hi, x_lo) = {
             let x = lhs as u128 * rhs as u128 + add as u128;
@@ -157,9 +157,9 @@ impl PartialEq for Modulus64 {
 /// It is highly recommended to use a block to ensure that [`Modulus64`], therefore [`Residue64`]s, are dropped.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Residue64<'a> {
-    pub(crate) modulus: &'a Modulus64,
+    modulus: &'a Modulus64,
     // x r (mod n)
-    pub(crate) x: u64,
+    x: u64,
 }
 
 impl<'a> Residue64<'a> {
