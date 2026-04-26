@@ -20,11 +20,11 @@ These techniques significantly improve performance, especially when the modulus 
 
 # Selection guide
 
-| Type             | Modulus             | Notes                 |
-|------------------|---------------------|-----------------------|
-| [`Modulus32`]    | odd, < 2^31.3...    | fastest               |
-| [`Modulus32Any`] | in `[2, 2^32)`      | supports even moduli  |
-| [`Modulus64`]    | odd, fits in `u64`  | supports large moduli |
+| Type             | Modulus             | Notes                                              |
+|------------------|---------------------|----------------------------------------------------|
+| [`Modulus32`]    | odd, < 2^31.3...    | fastest                                            |
+| [`Modulus32Any`] | in `[2, 2^32)`      | supports even moduli, zero-cost modulus switching  |
+| [`Modulus64`]    | odd, fits in `u64`  | supports large moduli                              |
 
 # Advanced usage
 

@@ -91,7 +91,7 @@ impl Modulus32Any {
         self.magic.wrapping_mul(x as u64) < self.magic
     }
 
-    /// Performs `*` operation modulo `self`.
+    /// Performs `a * b` modulo `self`.
     ///
     /// # Example
     ///
