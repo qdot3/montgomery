@@ -21,7 +21,8 @@ impl RollingHash {
         // hash prefixes
         for &c in source.iter() {
             let last = history.last().copied().unwrap();
-            // `last` and `base` share the same modulus
+            // `last` and `base` share the same modulus.
+            // `Raw{N}` and `Residue{N}` can interact.
             let next = last * base + modulus.residue(c as u64);
             history.push(next.into_raw());
         }

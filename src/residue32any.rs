@@ -91,7 +91,7 @@ impl Modulus32Any {
         self.magic.wrapping_mul(x as u64) < self.magic
     }
 
-    /// Performs modular multiplication.
+    /// Performs `*` operation modulo `self`.
     ///
     /// # Example
     ///
@@ -105,6 +105,43 @@ impl Modulus32Any {
     #[inline(always)]
     pub const fn mul(&self, a: u32, b: u32) -> u32 {
         self.residue64(a as u64 * b as u64) as u32
+    }
+
+    /// Performs `a * b + c` modulo `self`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use lib_modulo::Modulus32Any;
+    ///
+    /// let modulus = Modulus32Any::new(2357);
+    /// assert_eq!(
+    ///     modulus.carrying_mul(123, 456, 789),
+    ///     (123 * 456 + 789) % 2357
+    /// );
+    /// ```
+    #[inline(always)]
+    pub const fn carrying_mul(&self, a: u32, b: u32, c: u32) -> u32 {
+        self.residue64(a as u64 * b as u64 + c as u64) as u32
+    }
+
+    /// Performs `a * b + c + d` modulo `self`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use lib_modulo::Modulus32Any;
+    ///
+    /// // even number is available
+    /// let modulus = Modulus32Any::new(123_456);
+    /// assert_eq!(
+    ///     modulus.carrying_mul_add(u32::MAX, u32::MAX, u32::MAX, u32::MAX),
+    ///     (u64::MAX % 123_456) as u32
+    /// );
+    /// ```
+    #[inline(always)]
+    pub const fn carrying_mul_add(&self, a: u32, b: u32, c: u32, d: u32) -> u32 {
+        self.residue64(a as u64 * b as u64 + c as u64 + d as u64) as u32
     }
 
     /// Raises `x` to the power of `exp`, using exponentiation by squaring.
@@ -166,7 +203,7 @@ impl Modulus32Any {
     /// assert_eq!(modulus.inv(0), Err(15));
     /// assert_eq!(modulus.inv(15 * 99), Err(15));
     /// ```
-    pub fn inv(&self, x: u32) -> Result<u32, u32> {
+    pub const fn inv(&self, x: u32) -> Result<u32, u32> {
         // invariant: a x0 = x, b x0 = y (mod [y])
         let mut x = self.residue32(x) as i64;
         let mut y = self.n as i64;
