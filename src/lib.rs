@@ -46,8 +46,8 @@ This allows the use of large prime moduli without overflow.
 //! ```
 #![warn(missing_docs, missing_debug_implementations)]
 #![warn(clippy::all, clippy::cargo)]
-#![forbid(unsafe_code)]
-#![no_std]
+#![warn(unsafe_code)]
+// #![no_std]
 
 mod residue32;
 pub use residue32::*;
