@@ -16,7 +16,7 @@
 /// ```
 /// use lib_modulo::Modulus32Any;
 ///
-/// let modulus = Modulus32Any::new(14);
+/// let modulus = Modulus32Any::new(14).unwrap();
 /// assert_eq!(modulus.mul(3, 5), 1)
 /// ```
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -28,35 +28,49 @@ pub struct Modulus32Any {
     magic: u64,
 }
 
+/// Invalid moduli of [`Modulus32Any`].
+#[derive(thiserror::Error, Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub enum InvalidModulus {
+    /// Modulus is 0. This is undefined.
+    #[error("modulo 0 is undefined")]
+    Zero,
+    /// Modulus is 1. This is meaningless.
+    #[error("modulo 1 is useless and omitted for performance")]
+    One,
+}
+
 impl Modulus32Any {
     /// Creates new instance with the given modulus.
-    ///
-    /// # Panics
-    ///
-    /// Modulus `n` should be greater than 1.
+    /// 
+    /// # Error
+    /// 
+    /// Returns error if the given modulus is `0` ir `1`.
     ///
     /// # Example
     ///
     /// ```
-    /// use lib_modulo::Modulus32Any;
+    /// use lib_modulo::{Modulus32Any, InvalidModulus};
     ///
     /// // even number is available
-    /// let modulus = Modulus32Any::new(2);
+    /// let modulus = Modulus32Any::new(2).unwrap();
     /// // odd number is also available
-    /// let modulus = Modulus32Any::new(3);
+    /// let modulus = Modulus32Any::new(3).unwrap();
     /// // division by 0 is undefined
-    /// assert!(std::panic::catch_unwind(|| Modulus32Any::new(0)).is_err());
-    /// // meaningless division by 1 is NOT available for performance
-    /// assert!(std::panic::catch_unwind(|| Modulus32Any::new(1)).is_err());
+    /// assert_eq!(Modulus32Any::new(0), Err(InvalidModulus::Zero));
+    /// // division by 1 is meaningless and NOT available for performance
+    /// assert_eq!(Modulus32Any::new(1), Err(InvalidModulus::One));
     /// ```
-    #[must_use]
-    pub const fn new(n: u32) -> Self {
-        assert!(n > 1, "invalid modulus: modulus should be greater than 1.");
+    pub const fn new(n: u32) -> Result<Self, InvalidModulus> {
+        match n {
+            0 => Err(InvalidModulus::Zero),
+            1 => Err(InvalidModulus::One),
+            n => {
+                let n = n as u64;
+                let magic = (u64::MAX / n).wrapping_add(1);
 
-        let n = n as u64;
-        let magic = (u64::MAX / n).wrapping_add(1);
-
-        Self { n, magic }
+                Ok(Self { n, magic })
+            }
+        }
     }
 
     /// Returns the modulus.
@@ -99,7 +113,7 @@ impl Modulus32Any {
     /// use lib_modulo::Modulus32Any;
     ///
     /// // even number is available
-    /// let modulus = Modulus32Any::new(1 << 8);
+    /// let modulus = Modulus32Any::new(1 << 8).unwrap();
     /// assert_eq!(modulus.mul(u32::MAX, u32::MAX), 1);
     /// ```
     #[must_use]
@@ -114,7 +128,7 @@ impl Modulus32Any {
     /// ```
     /// use lib_modulo::Modulus32Any;
     ///
-    /// let modulus = Modulus32Any::new(2357);
+    /// let modulus = Modulus32Any::new(2357).unwrap();
     /// assert_eq!(
     ///     modulus.carrying_mul(123, 456, 789),
     ///     (123 * 456 + 789) % 2357
@@ -133,7 +147,7 @@ impl Modulus32Any {
     /// use lib_modulo::Modulus32Any;
     ///
     /// // even number is available
-    /// let modulus = Modulus32Any::new(123_456);
+    /// let modulus = Modulus32Any::new(123_456).unwrap();
     /// assert_eq!(
     ///     modulus.carrying_mul_add(u32::MAX, u32::MAX, u32::MAX, u32::MAX),
     ///     (u64::MAX % 123_456) as u32
@@ -155,7 +169,7 @@ impl Modulus32Any {
     /// ```
     /// use lib_modulo::Modulus32Any;
     ///
-    /// let modulus = Modulus32Any::new(123_456);
+    /// let modulus = Modulus32Any::new(123_456).unwrap();
     ///
     /// assert_eq!(modulus.pow(123_456 * 100 + 1, 1000), 1)
     /// ```
@@ -188,7 +202,7 @@ impl Modulus32Any {
     /// ```
     /// use lib_modulo::Modulus32Any;
     ///
-    /// let modulus = Modulus32Any::new(3 * 5);
+    /// let modulus = Modulus32Any::new(3 * 5).unwrap();
     /// for (a, inv_a) in [(1, 1), (2, 8), (4, 4), (7, 13), (11, 11), (14, 14)] {
     ///     assert_eq!(modulus.mul(a, inv_a), 1);
     ///     assert_eq!(modulus.inv(a), Ok(inv_a));
@@ -239,7 +253,7 @@ mod tests {
         #![proptest_config(ProptestConfig::with_cases(1 << 15))]
         #[test]
         fn mul(n in 2..=u32::MAX, a: u32, b: u32) {
-            let modulus = Modulus32Any::new(n);
+            let modulus = Modulus32Any::new(n).unwrap();
             assert_eq!(
                 modulus.mul(a, b),
                 (a as u64 * b as u64 % n as u64) as u32,
@@ -252,7 +266,7 @@ mod tests {
     fn mul_small() {
         let mut rng = rng();
         for n in 2..1 << 8 {
-            let modulus = Modulus32Any::new(n);
+            let modulus = Modulus32Any::new(n).unwrap();
             for _ in 0..1 << 12 {
                 let a = rng.random();
                 let b = rng.random();
@@ -265,7 +279,7 @@ mod tests {
         #![proptest_config(ProptestConfig::with_cases(1 << 15))]
         #[test]
         fn residue32(n in 2..=u32::MAX, a: u32) {
-            let modulus = Modulus32Any::new(n);
+            let modulus = Modulus32Any::new(n).unwrap();
             assert_eq!(modulus.residue32(a), a % n);
         }
     }
@@ -273,7 +287,7 @@ mod tests {
     #[test]
     fn residue32_small() {
         for n in 2..1 << 8 {
-            let modulus = Modulus32Any::new(n);
+            let modulus = Modulus32Any::new(n).unwrap();
             for a in random_iter().take(1 << 12) {
                 assert_eq!(modulus.residue32(a), a % n)
             }
@@ -284,7 +298,7 @@ mod tests {
         #![proptest_config(ProptestConfig::with_cases(1 << 15))]
         #[test]
         fn residue64(n in 2..=u32::MAX, a: u64) {
-            let modulus = Modulus32Any::new(n);
+            let modulus = Modulus32Any::new(n).unwrap();
             assert_eq!(modulus.residue64(a), a % n as u64);
         }
     }
@@ -292,7 +306,7 @@ mod tests {
     #[test]
     fn residue64_small() {
         for n in 2..1 << 8 {
-            let modulus = Modulus32Any::new(n);
+            let modulus = Modulus32Any::new(n).unwrap();
             for a in random_iter().take(1 << 12) {
                 assert_eq!(modulus.residue64(a), a % n as u64)
             }
@@ -323,7 +337,7 @@ mod tests {
         #![proptest_config(ProptestConfig::with_cases(1 << 15))]
         #[test]
         fn inv(n in 2..=u32::MAX, a: u32) {
-            let modulus = Modulus32Any::new(n);
+            let modulus = Modulus32Any::new(n).unwrap();
             match modulus.inv(a) {
                 Ok(inv) => assert_eq!(modulus.mul(a, inv), 1, "!"),
                 Err(gcd) => assert_eq!(gcd, binary_gcd(a, n), "?")

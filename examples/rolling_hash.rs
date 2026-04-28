@@ -57,7 +57,7 @@ impl RollingHash {
 fn main() {
     // generate prime at runtime for safety
     let prime = {
-        let mut x = random_range(1 << 63..u64::MAX - (1 << 10)) | 1;
+        let mut x = random_range(1 << 63..u64::MAX >> 10 << 10) | 1;
         while !primality_test(x) {
             x += 2
         }

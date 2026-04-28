@@ -176,7 +176,7 @@ impl Residue64<'_> {
     /// // The caller must ensure that both operands shares the same modulus.
     /// let double_sum = residues.into_iter().fold(modulus.residue(0), |sum, r| r + sum + r);
     /// assert_eq!(double_sum, modulus.residue((1 + 1000) * 1000));
-    /// ```#[must_use]
+    /// ```
     #[must_use]
     pub const fn into_raw(self) -> Raw64 {
         Raw64 { x: self.x }

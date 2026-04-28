@@ -1,7 +1,7 @@
 [package]
 name = "lib-modulo"
 authors = ["qdot3"]
-version = "0.8.0-alpha-5"
+version = "0.8.0-alpha-6"
 edition = "2021"
 
 license = "Apache-2.0 OR MIT"
@@ -9,9 +9,10 @@ license = "Apache-2.0 OR MIT"
 description = "Fast modular arithmetic"
 repository = "https://github.com/qdot3/montgomery"
 keywords = ["no_std", "residue", "montgomery", "plantard", "barrett"]
-categories = ["mathematics"]
+categories = ["mathematics", "no-std", "algorithms"]
 
 [dependencies]
+thiserror = "2.0.18"
 
 [dev-dependencies]
 proptest = "1.11.0"

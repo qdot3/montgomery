@@ -3,7 +3,7 @@
 
 [![crate](https://img.shields.io/crates/v/lib_modulo.svg)](https://crates.io/crates/lib_modulo)
 [![docs](https://docs.rs/lib_modulo/badge.svg)](https://docs.rs/lib_modulo)
-![`no_std`](https://img.shields.io/badge/no__std-compatible-blue)
+![no_std](https://img.shields.io/badge/no__std-compatible-blue)
 ![unsafe](https://img.shields.io/badge/unsafe-forbidden-success)
 
 High-performance word-size modular arithmetic using Barrett, Montgomery or Plantard multiplication.
