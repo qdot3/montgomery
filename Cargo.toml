@@ -1,7 +1,7 @@
 [package]
 name = "lib-modulo"
 authors = ["qdot3"]
-version = "0.8.0-alpha-6"
+version = "0.8.0"
 edition = "2021"
 
 license = "Apache-2.0 OR MIT"
@@ -12,7 +12,7 @@ keywords = ["no_std", "residue", "montgomery", "plantard", "barrett"]
 categories = ["mathematics", "no-std", "algorithms"]
 
 [dependencies]
-thiserror = "2.0.18"
+thiserror = "2"
 
 [dev-dependencies]
 proptest = "1.11.0"

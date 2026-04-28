@@ -35,16 +35,16 @@ pub enum InvalidModulus {
     #[error("modulo 0 is undefined")]
     Zero,
     /// Modulus is 1. This is meaningless.
-    #[error("modulo 1 is useless and omitted for performance")]
+    #[error("modulo 1 is meaningless and not available for performance reason")]
     One,
 }
 
 impl Modulus32Any {
     /// Creates new instance with the given modulus.
-    /// 
+    ///
     /// # Error
-    /// 
-    /// Returns error if the given modulus is `0` ir `1`.
+    ///
+    /// Returns error if the given modulus is `0` or `1`.
     ///
     /// # Example
     ///
